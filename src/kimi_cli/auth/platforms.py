@@ -223,10 +223,18 @@ async def _list_models(
         model_id = item.get("id")
         if not model_id:
             continue
+            
+        # Try different common fields for context length
+        raw_ctx_len = item.get("context_length") or item.get("max_model_len") or 128000
+        try:
+            context_length = int(raw_ctx_len)
+        except (ValueError, TypeError):
+            context_length = 128000
+
         result.append(
             ModelInfo(
                 id=str(model_id),
-                context_length=int(item.get("context_length") or 128000),
+                context_length=context_length,
                 supports_reasoning=bool(item.get("supports_reasoning")),
                 supports_image_in=bool(item.get("supports_image_in")),
                 supports_video_in=bool(item.get("supports_video_in")),
