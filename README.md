@@ -68,6 +68,14 @@ Run `kimi` to start. Use `/login` to configure your API provider:
 2. Enter your **API Base URL** and **API Key**.
 ![Setup Custom API](./docs/media/setlocalapi_1.png)
 
+## Latest Improvements (2026-03-09)
+
+- ✅ **Enhanced `/context` UI**: Switched to plain text for better TUI compatibility and fixed the `Task` tool attribute error.
+- ✅ **Optimized vLLM Support**: Added `max_model_len` field support to correctly identify models (e.g., Qwen) from vLLM endpoints.
+- ✅ **Fixed `edit` Tool**: Resolved Pydantic validation ambiguity by enforcing `list[Edit]` for more robust tool calls.
+- ✅ **Web UI Security**: Reduced dependencies vulnerabilities and updated build tools.
+- ✅ **Refined Documentation**: Simplified README with Node.js 22+ (nvm/fnm) instructions and a quick install command.
+
 ## Development
 
 ```sh
