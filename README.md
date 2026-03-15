@@ -1,9 +1,9 @@
 # Kimi Code CLI
 
 [![Version](https://img.shields.io/pypi/v/kimi-cli)](https://pypi.org/project/kimi-cli/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/MoonshotAI/kimi-cli)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/lihan0705/kimi-cli-plus)
 
-[Documentation](https://moonshotai.github.io/kimi-cli/en/) | [文档](https://moonshotai.github.io/kimi-cli/zh/)
+[Documentation](https://lihan0705.github.io/kimi-cli-plus/en/) | [文档](https://lihan0705.github.io/kimi-cli-plus/zh/)
 
 Kimi Code CLI is an AI agent that runs in the terminal, helping you complete software development tasks and terminal operations. It can read and edit code, execute shell commands, and autonomously plan actions.
 
@@ -46,14 +46,14 @@ fnm install 22
 
 **Quick Install:**
 ```bash
-curl -LsSf https://raw.githubusercontent.com/lihan0705/kimi-cli-local/main/scripts/install.sh | bash
+curl -LsSf https://raw.githubusercontent.com/lihan0705/kimi-cli-plus/main/scripts/install.sh | bash
 ```
 
 **Manual Setup:**
 1. **Clone & Setup**:
    ```bash
-   git clone https://github.com/MoonshotAI/kimi-cli.git
-   cd kimi-cli
+   git clone https://github.com/lihan0705/kimi-cli-plus.git
+   cd kimi-cli-plus
    ```
 
 2. **One-click Install**:

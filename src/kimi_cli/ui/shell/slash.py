@@ -393,7 +393,7 @@ def feedback(app: Shell, args: str):
     """Submit feedback to make Kimi Code CLI better"""
     import webbrowser
 
-    ISSUE_URL = "https://github.com/MoonshotAI/kimi-cli/issues"
+    ISSUE_URL = "https://github.com/lihan0705/kimi-cli-plus/issues"
     if webbrowser.open(ISSUE_URL):
         return
     console.print(f"Please submit feedback at [underline]{ISSUE_URL}[/underline].")

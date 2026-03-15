@@ -17,7 +17,7 @@ Kimi Code CLI 支持以下几种使用方式：
 - **[Agent 集成（`kimi acp`）](../reference/kimi-acp.md)**：以服务方式运行，通过 [Agent Client Protocol] 集成到 [IDE](./ides.md) 和其他本地 Agent 客户端中
 
 ::: info 提示
-如果你遇到问题或有建议，欢迎在 [GitHub Issues](https://github.com/MoonshotAI/kimi-cli/issues) 反馈。
+如果你遇到问题或有建议，欢迎在 [GitHub Issues](https://github.com/lihan0705/kimi-cli-plus/issues) 反馈。
 :::
 
 [Agent Client Protocol]: https://agentclientprotocol.com/

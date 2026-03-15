@@ -46,7 +46,7 @@ https://moonshotai.github.io/kimi-cli/llms.txt
 
 ## Source Code
 
-Repository: `https://github.com/MoonshotAI/kimi-cli`
+Repository: `https://github.com/lihan0705/kimi-cli-plus`
 
 When to read source:
 

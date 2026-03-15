@@ -17,7 +17,7 @@ Kimi Code CLI supports the following usage modes:
 - **[Agent integration (`kimi acp`)](../reference/kimi-acp.md)**: Run as a service and integrate with [IDEs](./ides.md) and other local agent clients via the [Agent Client Protocol]
 
 ::: info Tip
-If you encounter issues or have suggestions, please provide feedback on [GitHub Issues](https://github.com/MoonshotAI/kimi-cli/issues).
+If you encounter issues or have suggestions, please provide feedback on [GitHub Issues](https://github.com/lihan0705/kimi-cli-plus/issues).
 :::
 
 [Agent Client Protocol]: https://agentclientprotocol.com/

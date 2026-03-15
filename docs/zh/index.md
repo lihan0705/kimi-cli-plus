@@ -10,5 +10,5 @@ hero:
       link: /zh/guides/getting-started
     - theme: alt
       text: GitHub
-      link: https://github.com/MoonshotAI/kimi-cli
+      link: https://github.com/lihan0705/kimi-cli-plus
 ---

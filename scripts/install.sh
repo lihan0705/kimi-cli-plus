@@ -9,8 +9,8 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-REPO_URL="https://github.com/lihan0705/kimi-cli-local.git"
-MIRROR_URL="https://ghfast.top/https://github.com/lihan0705/kimi-cli-local.git"
+REPO_URL="https://github.com/lihan0705/kimi-cli-plus.git"
+MIRROR_URL="https://ghfast.top/https://github.com/lihan0705/kimi-cli-plus.git"
 INSTALL_DIR="$HOME/.kimi-code-cli-src"
 
 info() { echo -e "${BLUE}[INFO]${NC} $1"; }
