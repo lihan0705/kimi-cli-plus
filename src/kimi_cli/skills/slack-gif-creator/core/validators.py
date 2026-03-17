@@ -51,7 +51,7 @@ def check_slack_size(gif_path: str | Path, is_emoji: bool = True) -> tuple[bool,
         overage_kb = size_kb - limit_kb
         overage_percent = (overage_kb / limit_kb) * 100
         print(f"  Over by: {overage_kb:.1f} KB ({overage_percent:.1f}%)")
-        print(f"  Try: fewer frames, fewer colors, or simpler design")
+        print("  Try: fewer frames, fewer colors, or simpler design")
 
     return passes, info
 

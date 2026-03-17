@@ -6,11 +6,11 @@ This module provides high-impact visual effects that make animations feel
 professional and dynamic while keeping file sizes reasonable.
 """
 
-from PIL import Image, ImageDraw, ImageFilter
-import numpy as np
 import math
 import random
-from typing import Optional
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
 
 
 class Particle:
@@ -141,7 +141,7 @@ class ParticleSystem:
             self.particles.append(particle)
 
     def emit_confetti(self, x: int, y: int, count: int = 20,
-                      colors: Optional[list[tuple[int, int, int]]] = None):
+                      colors: list[tuple[int, int, int]] | None = None):
         """
         Emit confetti particles (colorful, falling).
 
@@ -210,7 +210,7 @@ class ParticleSystem:
         return len(self.particles)
 
 
-def add_motion_blur(frame: Image.Image, prev_frame: Optional[Image.Image],
+def add_motion_blur(frame: Image.Image, prev_frame: Image.Image | None,
                     blur_amount: float = 0.5) -> Image.Image:
     """
     Add motion blur by blending with previous frame.

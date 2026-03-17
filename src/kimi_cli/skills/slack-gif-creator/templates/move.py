@@ -5,15 +5,15 @@ Move Animation - Move objects along paths with various motion types.
 Provides flexible movement primitives for objects along linear, arc, or custom paths.
 """
 
+import math
 import sys
 from pathlib import Path
-import math
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from core.gif_builder import GIFBuilder
+from core.easing import calculate_arc_motion, interpolate
 from core.frame_composer import create_blank_frame, draw_circle, draw_emoji_enhanced
-from core.easing import interpolate, calculate_arc_motion
+from core.gif_builder import GIFBuilder
 
 
 def create_move_animation(
@@ -209,8 +209,8 @@ def apply_trail_effect(frames: list, trail_length: int = 5,
     Returns:
         List of frames with trail effect
     """
-    from PIL import Image, ImageChops
     import numpy as np
+    from PIL import Image
 
     trailed_frames = []
 

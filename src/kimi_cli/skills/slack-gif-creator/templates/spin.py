@@ -5,16 +5,16 @@ Spin Animation - Rotate objects continuously or with variation.
 Creates spinning, rotating, and wobbling effects.
 """
 
+import math
 import sys
 from pathlib import Path
-import math
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from PIL import Image
-from core.gif_builder import GIFBuilder
-from core.frame_composer import create_blank_frame, draw_emoji_enhanced, draw_circle
 from core.easing import interpolate
+from core.frame_composer import create_blank_frame, draw_emoji_enhanced
+from core.gif_builder import GIFBuilder
+from PIL import Image
 
 
 def create_spin_animation(

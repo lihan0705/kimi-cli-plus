@@ -11,9 +11,9 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from core.gif_builder import GIFBuilder
+from core.easing import ease_out_bounce
 from core.frame_composer import create_blank_frame, draw_circle, draw_emoji
-from core.easing import ease_out_bounce, interpolate
+from core.gif_builder import GIFBuilder
 
 
 def create_bounce_animation(

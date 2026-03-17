@@ -6,9 +6,8 @@ This module provides high-quality text rendering that looks crisp and profession
 in GIFs, with outlines for readability and effects for visual impact.
 """
 
-from PIL import Image, ImageDraw, ImageFont
-from typing import Optional
 
+from PIL import Image, ImageDraw, ImageFont
 
 # Typography scale - proportional sizing system
 TYPOGRAPHY_SCALE = {

@@ -7,10 +7,10 @@ generated frames, with automatic optimization for Slack's requirements.
 """
 
 from pathlib import Path
-from typing import Optional
+
 import imageio.v3 as imageio
-from PIL import Image
 import numpy as np
+from PIL import Image
 
 
 class GIFBuilder:
@@ -223,7 +223,7 @@ class GIFBuilder:
         }
 
         # Print info
-        print(f"\n✓ GIF created successfully!")
+        print("\n✓ GIF created successfully!")
         print(f"  Path: {output_path}")
         print(f"  Size: {file_size_kb:.1f} KB ({file_size_mb:.2f} MB)")
         print(f"  Dimensions: {self.width}x{self.height}")

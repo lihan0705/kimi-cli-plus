@@ -5,16 +5,16 @@ Zoom Animation - Scale objects dramatically for emphasis.
 Creates zoom in, zoom out, and dramatic scaling effects.
 """
 
+import math
 import sys
 from pathlib import Path
-import math
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from PIL import Image, ImageFilter
-from core.gif_builder import GIFBuilder
-from core.frame_composer import create_blank_frame, draw_emoji_enhanced
 from core.easing import interpolate
+from core.frame_composer import create_blank_frame, draw_emoji_enhanced
+from core.gif_builder import GIFBuilder
+from PIL import Image, ImageFilter
 
 
 def create_zoom_animation(

@@ -30,7 +30,7 @@ import html
 import random
 import shutil
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from defusedxml import minidom
@@ -127,9 +127,9 @@ class DocxXMLEditor(XMLEditor):
         Args:
             nodes: List of DOM nodes to process
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         def is_inside_deletion(elem):
             """Check if element is inside a w:del element."""
@@ -730,7 +730,7 @@ class Document:
         comment_id = self.next_comment_id
         para_id = _generate_hex_id()
         durable_id = _generate_hex_id()
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         # Add comment ranges to document.xml immediately
         self._document.insert_before(start, self._comment_range_start_xml(comment_id))
@@ -787,7 +787,7 @@ class Document:
         comment_id = self.next_comment_id
         para_id = _generate_hex_id()
         durable_id = _generate_hex_id()
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         # Add comment ranges to document.xml immediately
         parent_start_elem = self._document.get_node(

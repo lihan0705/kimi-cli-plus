@@ -5,15 +5,15 @@ Shake Animation Template - Creates shaking/vibrating motion.
 Use this for impact effects, emphasis, or nervous/excited reactions.
 """
 
-import sys
 import math
+import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from core.gif_builder import GIFBuilder
-from core.frame_composer import create_blank_frame, draw_circle, draw_emoji, draw_text
 from core.easing import ease_out_quad
+from core.frame_composer import create_blank_frame, draw_circle, draw_emoji, draw_text
+from core.gif_builder import GIFBuilder
 
 
 def create_shake_animation(

@@ -5,19 +5,18 @@ Explode Animation - Break objects into pieces that fly outward.
 Creates explosion, shatter, and particle burst effects.
 """
 
-import sys
-from pathlib import Path
 import math
 import random
+import sys
+from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from PIL import Image, ImageDraw
-import numpy as np
-from core.gif_builder import GIFBuilder
-from core.frame_composer import create_blank_frame, draw_emoji_enhanced
-from core.visual_effects import ParticleSystem
 from core.easing import interpolate
+from core.frame_composer import create_blank_frame, draw_emoji_enhanced
+from core.gif_builder import GIFBuilder
+from core.visual_effects import ParticleSystem
+from PIL import Image, ImageDraw
 
 
 def create_explode_animation(

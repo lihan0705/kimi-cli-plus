@@ -501,9 +501,7 @@ class BaseSchemaValidator:
             # e.g., "sldId" -> "sld", "sldMasterId" -> "sldMaster"
             prefix = elem_lower[:-2]  # Remove "id"
             # Check if this might be a compound like "sldMasterId"
-            if prefix.endswith("master"):
-                return prefix.lower()
-            elif prefix.endswith("layout"):
+            if prefix.endswith("master") or prefix.endswith("layout"):
                 return prefix.lower()
             else:
                 # Simple case like "sldId" -> "slide"
@@ -839,7 +837,7 @@ class BaseSchemaValidator:
                 schema = lxml.etree.XMLSchema(xsd_doc)
 
             # Load and preprocess XML
-            with open(xml_file, "r") as f:
+            with open(xml_file) as f:
                 xml_doc = lxml.etree.parse(f)
 
             xml_doc, _ = self._remove_template_tags_from_text_nodes(xml_doc)

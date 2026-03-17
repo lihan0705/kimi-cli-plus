@@ -5,16 +5,16 @@ Flip Animation - 3D-style card flip and rotation effects.
 Creates horizontal and vertical flips with perspective.
 """
 
+import math
 import sys
 from pathlib import Path
-import math
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from PIL import Image
-from core.gif_builder import GIFBuilder
-from core.frame_composer import create_blank_frame, draw_emoji_enhanced
 from core.easing import interpolate
+from core.frame_composer import create_blank_frame, draw_emoji_enhanced
+from core.gif_builder import GIFBuilder
+from PIL import Image
 
 
 def create_flip_animation(

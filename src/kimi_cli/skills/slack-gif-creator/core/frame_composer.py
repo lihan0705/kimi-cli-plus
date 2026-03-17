@@ -6,9 +6,9 @@ Provides functions for drawing shapes, text, emojis, and compositing elements
 together to create animation frames.
 """
 
-from PIL import Image, ImageDraw, ImageFont
+
 import numpy as np
-from typing import Optional
+from PIL import Image, ImageDraw, ImageFont
 
 
 def create_blank_frame(width: int, height: int, color: tuple[int, int, int] = (255, 255, 255)) -> Image.Image:
@@ -27,8 +27,8 @@ def create_blank_frame(width: int, height: int, color: tuple[int, int, int] = (2
 
 
 def draw_circle(frame: Image.Image, center: tuple[int, int], radius: int,
-                fill_color: Optional[tuple[int, int, int]] = None,
-                outline_color: Optional[tuple[int, int, int]] = None,
+                fill_color: tuple[int, int, int] | None = None,
+                outline_color: tuple[int, int, int] | None = None,
                 outline_width: int = 1) -> Image.Image:
     """
     Draw a circle on a frame.
@@ -52,8 +52,8 @@ def draw_circle(frame: Image.Image, center: tuple[int, int], radius: int,
 
 
 def draw_rectangle(frame: Image.Image, top_left: tuple[int, int], bottom_right: tuple[int, int],
-                   fill_color: Optional[tuple[int, int, int]] = None,
-                   outline_color: Optional[tuple[int, int, int]] = None,
+                   fill_color: tuple[int, int, int] | None = None,
+                   outline_color: tuple[int, int, int] | None = None,
                    outline_width: int = 1) -> Image.Image:
     """
     Draw a rectangle on a frame.
@@ -360,8 +360,8 @@ def draw_circle_with_shadow(frame: Image.Image, center: tuple[int, int], radius:
 
 def draw_rounded_rectangle(frame: Image.Image, top_left: tuple[int, int],
                           bottom_right: tuple[int, int], radius: int,
-                          fill_color: Optional[tuple[int, int, int]] = None,
-                          outline_color: Optional[tuple[int, int, int]] = None,
+                          fill_color: tuple[int, int, int] | None = None,
+                          outline_color: tuple[int, int, int] | None = None,
                           outline_width: int = 1) -> Image.Image:
     """
     Draw a rectangle with rounded corners.
@@ -434,7 +434,7 @@ def add_vignette(frame: Image.Image, strength: float = 0.5) -> Image.Image:
 
 def draw_star(frame: Image.Image, center: tuple[int, int], size: int,
              fill_color: tuple[int, int, int],
-             outline_color: Optional[tuple[int, int, int]] = None,
+             outline_color: tuple[int, int, int] | None = None,
              outline_width: int = 1) -> Image.Image:
     """
     Draw a 5-pointed star.
