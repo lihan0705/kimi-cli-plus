@@ -19,7 +19,7 @@ async def test_replace_single_occurrence(
     await file_path.write_text(original_content)
 
     result = await str_replace_file_tool(
-        Params(path=str(file_path), edit=Edit(old="world", new="universe"))
+        Params(path=str(file_path), edit=[Edit(old="world", new="universe")])
     )
 
     assert not result.is_error
@@ -43,7 +43,7 @@ async def test_replace_all_occurrences(
     result = await str_replace_file_tool(
         Params(
             path=str(file_path),
-            edit=Edit(old="apple", new="fruit", replace_all=True),
+            edit=[Edit(old="apple", new="fruit", replace_all=True)],
         )
     )
 
@@ -86,7 +86,7 @@ async def test_replace_multiline_content(
     result = await str_replace_file_tool(
         Params(
             path=str(file_path),
-            edit=Edit(old="Line 2\nLine 3", new="Modified line 2\nModified line 3"),
+            edit=[Edit(old="Line 2\nLine 3", new="Modified line 2\nModified line 3")],
         )
     )
 
@@ -104,7 +104,7 @@ async def test_replace_unicode_content(
     await file_path.write_text(original_content)
 
     result = await str_replace_file_tool(
-        Params(path=str(file_path), edit=Edit(old="世界", new="地球"))
+        Params(path=str(file_path), edit=[Edit(old="世界", new="地球")])
     )
 
     assert not result.is_error
@@ -119,7 +119,7 @@ async def test_replace_no_match(str_replace_file_tool: StrReplaceFile, temp_work
     await file_path.write_text(original_content)
 
     result = await str_replace_file_tool(
-        Params(path=str(file_path), edit=Edit(old="notfound", new="replacement"))
+        Params(path=str(file_path), edit=[Edit(old="notfound", new="replacement")])
     )
 
     assert result.is_error
@@ -137,7 +137,7 @@ async def test_replace_with_relative_path(
     await file_path.write_text("old content")
 
     result = await str_replace_file_tool(
-        Params(path="relative/path/file.txt", edit=Edit(old="old", new="new"))
+        Params(path="relative/path/file.txt", edit=[Edit(old="old", new="new")])
     )
 
     assert not result.is_error
@@ -151,7 +151,7 @@ async def test_replace_outside_work_directory(
     outside_file.write_text("old content", encoding="utf-8")
 
     result = await str_replace_file_tool(
-        Params(path=str(outside_file), edit=Edit(old="old", new="new"))
+        Params(path=str(outside_file), edit=[Edit(old="old", new="new")])
     )
 
     assert not result.is_error
@@ -170,7 +170,7 @@ async def test_replace_outside_work_directory_with_prefix(
     sneaky_file.write_text("content", encoding="utf-8")
 
     result = await str_replace_file_tool(
-        Params(path=str(sneaky_file), edit=Edit(old="content", new="new"))
+        Params(path=str(sneaky_file), edit=[Edit(old="content", new="new")])
     )
 
     assert not result.is_error
@@ -184,7 +184,7 @@ async def test_replace_nonexistent_file(
     file_path = temp_work_dir / "nonexistent.txt"
 
     result = await str_replace_file_tool(
-        Params(path=str(file_path), edit=Edit(old="old", new="new"))
+        Params(path=str(file_path), edit=[Edit(old="old", new="new")])
     )
 
     assert result.is_error
@@ -199,7 +199,7 @@ async def test_replace_directory_instead_of_file(
     await dir_path.mkdir()
 
     result = await str_replace_file_tool(
-        Params(path=str(dir_path), edit=Edit(old="old", new="new"))
+        Params(path=str(dir_path), edit=[Edit(old="old", new="new")])
     )
 
     assert result.is_error
@@ -240,7 +240,7 @@ async def test_replace_empty_strings(
     await file_path.write_text(original_content)
 
     result = await str_replace_file_tool(
-        Params(path=str(file_path), edit=Edit(old="world", new=""))
+        Params(path=str(file_path), edit=[Edit(old="world", new="")])
     )
 
     assert not result.is_error

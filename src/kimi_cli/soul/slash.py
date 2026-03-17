@@ -268,18 +268,20 @@ async def context(soul: KimiSoul, args: str):
     categories["System prompt"] += len(str(soul.agent.system_prompt))
 
     # Tools
-    for _tool_name, tool in soul.agent.toolset._tool_dict.items():
+    for _tool_name, tool in soul.agent.toolset._tool_dict.items():  # type: ignore
         # Estimate tool definition size
+        from typing import Any
+
         from pydantic import BaseModel
 
-        params = {}
+        params: Any = {}
         if hasattr(tool, "parameters"):
             params = tool.parameters
         elif hasattr(tool, "params"):
-            if isinstance(tool.params, type) and issubclass(tool.params, BaseModel):
+            if isinstance(tool.params, type) and issubclass(tool.params, BaseModel):  # type: ignore
                 params = tool.params.model_json_schema()
             else:
-                params = tool.params
+                params = tool.params  # type: ignore
 
         description = getattr(tool, "description", "")
         tool_size = len(str(description)) + len(json.dumps(params))

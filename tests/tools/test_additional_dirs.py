@@ -153,7 +153,7 @@ async def test_replace_in_additional_dir(
         result = await replace_tool(
             ReplaceParams(
                 path=str(target),
-                edit=Edit(old="old_value", new="new_value"),
+                edit=[Edit(old="old_value", new="new_value")],
             )
         )
         assert not result.is_error
