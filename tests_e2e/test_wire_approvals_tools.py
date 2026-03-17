@@ -704,7 +704,7 @@ def test_display_block_diff_write_file(tmp_path) -> None:
 def test_display_block_diff_str_replace(tmp_path) -> None:
     replace_args = {
         "path": "file.txt",
-        "edit": {"old": "hello", "new": "hi", "replace_all": False},
+        "edit": [{"old": "hello", "new": "hi", "replace_all": False}],
     }
     scripts = [
         "\n".join(

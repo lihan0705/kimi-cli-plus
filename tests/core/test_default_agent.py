@@ -613,50 +613,27 @@ Replace specific strings within a specified file.
                             "type": "string",
                         },
                         "edit": {
-                            "anyOf": [
-                                {
-                                    "properties": {
-                                        "old": {
-                                            "description": "The old string to replace. Can be multi-line.",
-                                            "type": "string",
-                                        },
-                                        "new": {
-                                            "description": "The new string to replace with. Can be multi-line.",
-                                            "type": "string",
-                                        },
-                                        "replace_all": {
-                                            "default": False,
-                                            "description": "Whether to replace all occurrences.",
-                                            "type": "boolean",
-                                        },
+                            "description": "A list of edit(s) to apply to the file.",
+                            "items": {
+                                "properties": {
+                                    "old": {
+                                        "description": "The old string to replace. Can be multi-line.",
+                                        "type": "string",
                                     },
-                                    "required": ["old", "new"],
-                                    "type": "object",
-                                },
-                                {
-                                    "items": {
-                                        "properties": {
-                                            "old": {
-                                                "description": "The old string to replace. Can be multi-line.",
-                                                "type": "string",
-                                            },
-                                            "new": {
-                                                "description": "The new string to replace with. Can be multi-line.",
-                                                "type": "string",
-                                            },
-                                            "replace_all": {
-                                                "default": False,
-                                                "description": "Whether to replace all occurrences.",
-                                                "type": "boolean",
-                                            },
-                                        },
-                                        "required": ["old", "new"],
-                                        "type": "object",
+                                    "new": {
+                                        "description": "The new string to replace with. Can be multi-line.",
+                                        "type": "string",
                                     },
-                                    "type": "array",
+                                    "replace_all": {
+                                        "default": False,
+                                        "description": "Whether to replace all occurrences.",
+                                        "type": "boolean",
+                                    },
                                 },
-                            ],
-                            "description": "The edit(s) to apply to the file. You can provide a single edit or a list of edits here.",
+                                "required": ["old", "new"],
+                                "type": "object",
+                            },
+                            "type": "array",
                         },
                     },
                     "required": ["path", "edit"],

@@ -76,16 +76,68 @@ def test_initialize_handshake(tmp_path) -> None:
                             "aliases": [],
                         },
                         {
-                            "name": "skill:kimi-cli-help",
-                            "description": "Answer Kimi Code CLI usage, configuration, and troubleshooting questions. Use when user asks about Kimi Code CLI installation, setup, configuration, slash commands, keyboard shortcuts, MCP integration, providers, environment variables, how something works internally, or any questions about Kimi Code CLI itself.",
+                            "name": "context",
+                            "description": "Show detailed context usage breakdown",
                             "aliases": [],
                         },
                         {
-                            "name": "skill:skill-creator",
-                            "description": "Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Kimi's capabilities with specialized knowledge, workflows, or tool integrations.",
+                            "name": "skill:academic-researcher",
+                            "description": """\
+Academic research assistant for literature reviews, paper analysis, and scholarly writing.
+Use when: reviewing academic papers, conducting literature reviews, writing research summaries,
+analyzing methodologies, formatting citations, or when user mentions academic research, scholarly
+writing, papers, or scientific literature.
+""",
                             "aliases": [],
-                        },
-                    ],
+                        }, {
+    "name": "skill:algorithmic-art",
+    "description": "Creating algorithmic art using p5.js with seeded randomness and interactive parameter exploration. Use this when users request creating art using code, generative art, algorithmic art, flow fields, or particle systems. Create original algorithmic art rather than copying existing artists' work to avoid copyright violations.",
+    "aliases": [],
+}, {
+    "name": "skill:artifacts-builder",
+    "description": "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui). Use for complex artifacts requiring state management, routing, or shadcn/ui components - not for simple single-file HTML/JSX artifacts.",
+    "aliases": [],
+}, {
+    "name": "skill:brand-guidelines",
+    "description": "Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having Anthropic's look-and-feel. Use it when brand colors or style guidelines, visual formatting, or company design standards apply.",
+    "aliases": [],
+}, {
+    "name": "skill:canvas-design",
+    "description": "Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when the user asks to create a poster, piece of art, design, or other static piece. Create original visual designs, never copying existing artists' work to avoid copyright violations.",
+    "aliases": [],
+}, {
+    "name": "skill:internal-comms",
+    "description": "A set of resources to help me write all kinds of internal communications, using the formats that my company likes to use. Claude should use this skill whenever asked to write some sort of internal communications (status reports, leadership updates, 3P updates, company newsletters, FAQs, incident reports, project updates, etc.).",
+    "aliases": [],
+}, {
+    "name": "skill:kimi-cli-help",
+    "description": "Answer Kimi Code CLI usage, configuration, and troubleshooting questions. Use when user asks about Kimi Code CLI installation, setup, configuration, slash commands, keyboard shortcuts, MCP integration, providers, environment variables, how something works internally, or any questions about Kimi Code CLI itself.",
+    "aliases": [],
+}, {
+    "name": "skill:mcp-builder",
+    "description": "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services, whether in Python (FastMCP) or Node/TypeScript (MCP SDK).",
+    "aliases": [],
+}, {
+    "name": "skill:skill-creator",
+    "description": "Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.",
+    "aliases": [],
+}, {
+    "name": "skill:slack-gif-creator",
+    "description": 'Toolkit for creating animated GIFs optimized for Slack, with validators for size constraints and composable animation primitives. This skill applies when users request animated GIFs or emoji animations for Slack from descriptions like "make me a GIF for Slack of X doing Y".',
+    "aliases": [],
+}, {
+    "name": "skill:template-skill",
+    "description": "Replace with description of the skill and when Claude should use it.",
+    "aliases": [],
+}, {
+    "name": "skill:theme-factory",
+    "description": "Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc. There are 10 pre-set themes with colors/fonts that you can apply to any artifact that has been creating, or can generate a new theme on-the-fly.",
+    "aliases": [],
+}, {
+    "name": "skill:webapp-testing",
+    "description": "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.",
+    "aliases": [],
+}],
                     "capabilities": {"supports_question": True},
                 }
             }
@@ -158,16 +210,68 @@ def test_initialize_external_tool_conflict(tmp_path) -> None:
                             "aliases": [],
                         },
                         {
-                            "name": "skill:kimi-cli-help",
-                            "description": "Answer Kimi Code CLI usage, configuration, and troubleshooting questions. Use when user asks about Kimi Code CLI installation, setup, configuration, slash commands, keyboard shortcuts, MCP integration, providers, environment variables, how something works internally, or any questions about Kimi Code CLI itself.",
+                            "name": "context",
+                            "description": "Show detailed context usage breakdown",
                             "aliases": [],
                         },
                         {
-                            "name": "skill:skill-creator",
-                            "description": "Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Kimi's capabilities with specialized knowledge, workflows, or tool integrations.",
+                            "name": "skill:academic-researcher",
+                            "description": """\
+Academic research assistant for literature reviews, paper analysis, and scholarly writing.
+Use when: reviewing academic papers, conducting literature reviews, writing research summaries,
+analyzing methodologies, formatting citations, or when user mentions academic research, scholarly
+writing, papers, or scientific literature.
+""",
                             "aliases": [],
-                        },
-                    ],
+                        }, {
+    "name": "skill:algorithmic-art",
+    "description": "Creating algorithmic art using p5.js with seeded randomness and interactive parameter exploration. Use this when users request creating art using code, generative art, algorithmic art, flow fields, or particle systems. Create original algorithmic art rather than copying existing artists' work to avoid copyright violations.",
+    "aliases": [],
+}, {
+    "name": "skill:artifacts-builder",
+    "description": "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui). Use for complex artifacts requiring state management, routing, or shadcn/ui components - not for simple single-file HTML/JSX artifacts.",
+    "aliases": [],
+}, {
+    "name": "skill:brand-guidelines",
+    "description": "Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having Anthropic's look-and-feel. Use it when brand colors or style guidelines, visual formatting, or company design standards apply.",
+    "aliases": [],
+}, {
+    "name": "skill:canvas-design",
+    "description": "Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when the user asks to create a poster, piece of art, design, or other static piece. Create original visual designs, never copying existing artists' work to avoid copyright violations.",
+    "aliases": [],
+}, {
+    "name": "skill:internal-comms",
+    "description": "A set of resources to help me write all kinds of internal communications, using the formats that my company likes to use. Claude should use this skill whenever asked to write some sort of internal communications (status reports, leadership updates, 3P updates, company newsletters, FAQs, incident reports, project updates, etc.).",
+    "aliases": [],
+}, {
+    "name": "skill:kimi-cli-help",
+    "description": "Answer Kimi Code CLI usage, configuration, and troubleshooting questions. Use when user asks about Kimi Code CLI installation, setup, configuration, slash commands, keyboard shortcuts, MCP integration, providers, environment variables, how something works internally, or any questions about Kimi Code CLI itself.",
+    "aliases": [],
+}, {
+    "name": "skill:mcp-builder",
+    "description": "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services, whether in Python (FastMCP) or Node/TypeScript (MCP SDK).",
+    "aliases": [],
+}, {
+    "name": "skill:skill-creator",
+    "description": "Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.",
+    "aliases": [],
+}, {
+    "name": "skill:slack-gif-creator",
+    "description": 'Toolkit for creating animated GIFs optimized for Slack, with validators for size constraints and composable animation primitives. This skill applies when users request animated GIFs or emoji animations for Slack from descriptions like "make me a GIF for Slack of X doing Y".',
+    "aliases": [],
+}, {
+    "name": "skill:template-skill",
+    "description": "Replace with description of the skill and when Claude should use it.",
+    "aliases": [],
+}, {
+    "name": "skill:theme-factory",
+    "description": "Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc. There are 10 pre-set themes with colors/fonts that you can apply to any artifact that has been creating, or can generate a new theme on-the-fly.",
+    "aliases": [],
+}, {
+    "name": "skill:webapp-testing",
+    "description": "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.",
+    "aliases": [],
+}],
                     "external_tools": {
                         "accepted": [],
                         "rejected": [{"name": "Shell", "reason": "conflicts with builtin tool"}],
