@@ -75,6 +75,8 @@ class UpdateConfigTomlResponse(BaseModel):
 
 def _build_global_config() -> GlobalConfig:
     """Build GlobalConfig from kimi-cli config."""
+    from kimi_cli.auth.platforms import get_platform_name_for_provider
+
     config = load_config()
 
     models: list[ConfigModel] = []
@@ -87,11 +89,13 @@ def _build_global_config() -> GlobalConfig:
         derived_caps = derive_model_capabilities(model)
         capabilities = derived_caps or None
 
+        provider_name = get_platform_name_for_provider(model.provider) or model.provider
+
         models.append(
             ConfigModel(
                 name=model_name,
                 model=model.model,
-                provider=model.provider,
+                provider=provider_name,
                 provider_type=provider.type,
                 max_context_size=model.max_context_size,
                 capabilities=capabilities,

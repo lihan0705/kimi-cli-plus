@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 from prompt_toolkit.shortcuts.choice_input import ChoiceInput
 
-from kimi_cli.auth.platforms import get_platform_name_for_provider, refresh_managed_models
+from kimi_cli.auth.platforms import (
+    get_platform_name_for_provider, 
+    refresh_managed_models, 
+    parse_openai_legacy_name
+)
 from kimi_cli.cli import Reload, SwitchToWeb
 from kimi_cli.config import load_config, save_config
 from kimi_cli.exception import ConfigError
@@ -175,6 +179,13 @@ async def model(app: Shell, args: str):
     for name in sorted(config.models):
         model_cfg = config.models[name]
         provider_label = get_platform_name_for_provider(model_cfg.provider) or model_cfg.provider
+        
+        # For OpenAI Legacy, show custom name instead of generic label
+        if model_cfg.provider.startswith("managed:openai-legacy:"):
+            custom_name = parse_openai_legacy_name(model_cfg.provider)
+            if custom_name:
+                provider_label = f"OpenAI Legacy ({custom_name})"
+        
         marker = " (current)" if name == curr_model_name else ""
         label = f"{model_cfg.model} ({provider_label}){marker}"
         model_choices.append((name, label))

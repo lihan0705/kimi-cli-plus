@@ -221,7 +221,7 @@ export function GlobalConfigControls({
           >
             <Cpu className="size-4 shrink-0" />
             <span className="truncate">
-              {config ? config.defaultModel : "Model"}
+              {currentModel ? currentModel.model : "Model"}
             </span>
             {(isLoading || isUpdating) && (
               <Loader className="ml-auto shrink-0" size={14} />
@@ -235,7 +235,7 @@ export function GlobalConfigControls({
             <ModelSelectorGroup heading="Models">
               {(config?.models ?? []).map((m) => {
                 const isSelected = m.name === config?.defaultModel;
-                const label = `${m.name} (${m.provider})`;
+                const label = `${m.model} (${m.provider})`;
                 return (
                   <ModelSelectorItem
                     key={m.name}
@@ -249,7 +249,7 @@ export function GlobalConfigControls({
                       <span className="size-4" />
                     )}
                     <ModelSelectorName title={label}>
-                      {m.name}
+                      {m.model}
                     </ModelSelectorName>
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {m.provider}

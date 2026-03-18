@@ -7,7 +7,7 @@ import aiohttp
 from pydantic import BaseModel
 
 from kimi_cli.auth import KIMI_CODE_PLATFORM_ID
-from kimi_cli.config import Config, LLMModel, load_config, save_config
+from kimi_cli.config import Config, LLMModel, LLMProvider, load_config, save_config
 from kimi_cli.llm import ModelCapability
 from kimi_cli.utils.aiohttp import new_client_session
 from kimi_cli.utils.logging import logger
@@ -121,8 +121,13 @@ def get_platform_name_for_provider(provider_key: str) -> str | None:
     platform_id = parse_managed_provider_key(provider_key)
     if not platform_id:
         return None
+
+    # Handle OpenAI legacy with name
+    if platform_id.startswith("openai-legacy:"):
+        return platform_id.removeprefix("openai-legacy:")
+
     platform = get_platform_by_id(platform_id)
-    return platform.name if platform else None
+    return platform.name if platform else platform_id
 
 
 async def refresh_managed_models(config: Config) -> bool:
@@ -143,8 +148,13 @@ async def refresh_managed_models(config: Config) -> bool:
             continue
         platform = get_platform_by_id(platform_id)
         if platform is None:
-            logger.warning("Managed platform not found: {platform}", platform=platform_id)
-            continue
+            # Handle OpenAI legacy with name
+            if platform_id.startswith("openai-legacy:"):
+                platform = get_platform_by_id("openai-legacy")
+
+            if platform is None:
+                logger.warning("Managed platform not found: {platform}", platform=platform_id)
+                continue
 
         api_key = provider.api_key.get_secret_value()
         if not api_key and provider.oauth:
@@ -159,8 +169,20 @@ async def refresh_managed_models(config: Config) -> bool:
                 provider=provider_key,
             )
             continue
+
+        # Determine base URL for listing models
+        base_url = platform.base_url
+        if platform.id == "openai-legacy":
+            if not provider.base_url:
+                logger.warning(
+                    "Missing base_url for openai-legacy provider: {provider}",
+                    provider=provider_key,
+                )
+                continue
+            base_url = provider.base_url
+
         try:
-            models = await list_models(platform, api_key)
+            models = await list_models(platform, api_key, base_url=base_url)
         except Exception as exc:
             logger.error(
                 "Failed to refresh models for {platform}: {error}",
@@ -184,11 +206,62 @@ async def refresh_managed_models(config: Config) -> bool:
     return changed
 
 
-async def list_models(platform: Platform, api_key: str) -> list[ModelInfo]:
+# OpenAI Legacy multi-URL support functions
+
+def parse_openai_legacy_name(provider_key: str) -> str | None:
+    """Parse custom name from OpenAI Legacy provider key.
+    
+    Args:
+        provider_key: Provider key in format "managed:openai-legacy:{name}"
+        
+    Returns:
+        Custom name if valid, None otherwise
+    """
+    if not provider_key.startswith("managed:openai-legacy:"):
+        return None
+    name = provider_key.removeprefix("managed:openai-legacy:")
+    return name if name else None
+
+
+def make_openai_legacy_provider_key(name: str) -> str:
+    """Create provider key for OpenAI Legacy with custom name.
+    
+    Args:
+        name: Custom name for the OpenAI Legacy URL
+        
+    Returns:
+        Provider key in format "managed:openai-legacy:{name}"
+    """
+    return f"managed:openai-legacy:{name}"
+
+
+def list_openai_legacy_providers(config: Config) -> list[tuple[str, LLMProvider]]:
+    """List all OpenAI Legacy providers with their custom names.
+    
+    Args:
+        config: Configuration object
+        
+    Returns:
+        List of tuples (custom_name, provider) for OpenAI Legacy providers
+    """
+    result = []
+    for key, provider in config.providers.items():
+        if key.startswith("managed:openai-legacy:"):
+            name = parse_openai_legacy_name(key)
+            if name:
+                result.append((name, provider))
+    return result
+
+
+async def list_models(
+    platform: Platform,
+    api_key: str,
+    base_url: str | None = None,
+) -> list[ModelInfo]:
     async with new_client_session() as session:
         models = await _list_models(
             session,
-            base_url=platform.base_url,
+            base_url=base_url or platform.base_url,
             api_key=api_key,
         )
     if platform.allowed_prefixes is None:
@@ -307,3 +380,50 @@ def _apply_models(
         changed = True
 
     return changed
+
+
+# OpenAI Legacy multi-URL support functions
+
+def parse_openai_legacy_name(provider_key: str) -> str | None:
+    """Parse custom name from OpenAI Legacy provider key.
+    
+    Args:
+        provider_key: Provider key in format "managed:openai-legacy:{name}"
+        
+    Returns:
+        Custom name if valid, None otherwise
+    """
+    if not provider_key.startswith("managed:openai-legacy:"):
+        return None
+    name = provider_key.removeprefix("managed:openai-legacy:")
+    return name if name else None
+
+
+def make_openai_legacy_provider_key(name: str) -> str:
+    """Create provider key for OpenAI Legacy with custom name.
+    
+    Args:
+        name: Custom name for the OpenAI Legacy URL
+        
+    Returns:
+        Provider key in format "managed:openai-legacy:{name}"
+    """
+    return f"managed:openai-legacy:{name}"
+
+
+def list_openai_legacy_providers(config: Config) -> list[tuple[str, LLMProvider]]:
+    """List all OpenAI Legacy providers with their custom names.
+    
+    Args:
+        config: Configuration object
+        
+    Returns:
+        List of tuples (custom_name, provider) for OpenAI Legacy providers
+    """
+    result = []
+    for key, provider in config.providers.items():
+        if key.startswith("managed:openai-legacy:"):
+            name = parse_openai_legacy_name(key)
+            if name:
+                result.append((name, provider))
+    return result
