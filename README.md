@@ -22,26 +22,16 @@
 
 ## ☯️ The "Plus" Philosophy
 
-Kimi Code Plus is not just a tool; it is a refinement of the interface between human intent and machine execution. We focus on removing the friction of configuration and the noise of complex UIs, adhering to the principle that **the best tool is the one that feels invisible.**
+Kimi Code Plus enhances the developer experience through thoughtful improvements that make AI assistance more intuitive and powerful.
 
-### 🔳 Multi-LLM Fabric
-We've unified the configuration layer so you can treat different models as a single, fluid resource.
-- **Unified Identity**: Manage multiple OpenAI-compatible providers (DeepSeek, GLM, local vLLM) simultaneously. No overwrites, just [Seamless CLI Switching](./docs/media/allURLmodel.png).
-- **Intuitive Management**: A dedicated, monochrome [Web Dashboard](./docs/media/simpleurlmanage.png) to manage endpoints with the same elegance as your code.
-- **Zero-Config Discovery**: Automatic `max_model_len` detection for vLLM—intelligence that stays out of your way.
+| Improvement Type | Description & Links |
+|------------------|-------------------|
+| **🔄 Multi-LLM Provider Management** | • `/login` now supports switching between OpenAI Legacy providers<br>• Add, manage multiple URLs and API keys<br>• Auto-load all models from different endpoints<br>• Enhanced Web UI for provider management<br>• 📸 [Provider Management](./docs/media/allURLmodel.png) • [Web Dashboard](./docs/media/simpleurlmanage.png) |
+| **👁️ Context Observation** | • New `/context` command to inspect current conversation context<br>• Real-time monitoring of token usage and memory state<br>• Debug and optimize agent interactions |
+| **🎯 Enhanced Skill System** | • Added default skillset for common development tasks<br>• Ready-to-use behaviors for planning, research, and orchestration<br>• Improved autonomous multi-file coordination |
+| **🌐 Web UI Enhancements** | • Updated interface reflects new provider management features<br>• Clean, monochrome design matching code aesthetics<br>• Responsive dashboard for endpoint configuration |
 
-### 🧠 Agentic Precision & Default Skills
-Beyond raw prompting, we provide a structured cognitive layer designed for professional engineering.
-- **Surgical Editing**: Enhanced tool validation logic ensures the agent "thinks twice, cuts once," delivering high-fidelity code mutations.
-- **Default Skillset**: Built-in specialized behaviors for autonomous planning, research, and multi-file orchestration—ready out of the box.
-
----
-
-## 🚀 Key Capabilities
-
-- **⚡ Shell Mode**: Toggle `Ctrl-X` to run terminal commands directly in context.
-- **🛠️ Autonomous Planning**: Sophisticated multi-step engineering and codebase analysis.
-- **🔌 Deep Integration**: Native support for **VS Code**, **Zed**, and **MCP**.
+**Design Philosophy**: The Less is More
 
 ---
 

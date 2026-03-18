@@ -114,7 +114,7 @@ def _get_network_addresses() -> list[str]:
 
     # Method 3: Try netifaces if available (most comprehensive)
     try:
-        import netifaces
+        import netifaces  # type: ignore[import-not-found]
 
         for interface in netifaces.interfaces():
             addrs = netifaces.ifaddresses(interface)

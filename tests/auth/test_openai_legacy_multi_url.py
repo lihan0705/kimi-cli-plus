@@ -2,7 +2,8 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+
+from pydantic import SecretStr
 
 from kimi_cli.auth.platforms import (
     list_openai_legacy_providers,
@@ -10,7 +11,6 @@ from kimi_cli.auth.platforms import (
     parse_openai_legacy_name,
 )
 from kimi_cli.config import Config, LLMModel, LLMProvider
-from pydantic import SecretStr
 
 
 def test_parse_openai_legacy_name():
@@ -31,7 +31,7 @@ def test_make_openai_legacy_provider_key():
 def test_list_openai_legacy_providers():
     """Test listing OpenAI Legacy providers from config."""
     config = Config()
-    
+
     # Add some test providers
     config.providers["managed:openai-legacy:my-openai"] = LLMProvider(
         type="openai_legacy",
@@ -39,7 +39,7 @@ def test_list_openai_legacy_providers():
         api_key=SecretStr("sk-test"),
     )
     config.providers["managed:openai-legacy:deepseek"] = LLMProvider(
-        type="openai_legacy", 
+        type="openai_legacy",
         base_url="https://api.deepseek.com/v1",
         api_key=SecretStr("sk-test2"),
     )
@@ -48,14 +48,14 @@ def test_list_openai_legacy_providers():
         base_url="https://api.kimi.com/v1",
         api_key=SecretStr("sk-test3"),
     )
-    
+
     providers = list_openai_legacy_providers(config)
-    
+
     assert len(providers) == 2
     names = [name for name, _ in providers]
     assert "my-openai" in names
     assert "deepseek" in names
-    
+
     # Check provider configurations
     for name, provider in providers:
         if name == "my-openai":
@@ -69,43 +69,45 @@ def test_full_integration_flow(tmp_path: Path):
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
         config_file = tmp_path / "config.toml"
-        
+
         # Create initial config
         config = Config()
-        config.source_file = str(config_file)
-        
+        config.source_file = config_file
+
         # Simulate adding an OpenAI Legacy provider
         name = "test-openai"
         provider_key = make_openai_legacy_provider_key(name)
         base_url = "https://api.test-openai.com/v1"
         api_key = "sk-test123"
-        
+
         config.providers[provider_key] = LLMProvider(
             type="openai_legacy",
             base_url=base_url,
             api_key=SecretStr(api_key),
         )
-        
+
         # Add some models
-        model_key = f"openai-legacy/test-model"
+        model_key = "openai-legacy/test-model"
         config.models[model_key] = LLMModel(
             provider=provider_key,
             model="test-model",
             max_context_size=128000,
         )
-        
+
         # Save and reload
         from kimi_cli.config import save_config
+
         save_config(config, config_file)
-        
+
         # Load and verify
         from kimi_cli.config import load_config
+
         loaded_config = load_config(config_file)
-        
+
         assert provider_key in loaded_config.providers
         assert loaded_config.providers[provider_key].base_url == base_url
         assert make_openai_legacy_provider_key("test-openai") in loaded_config.providers
-        
+
         # Test listing
         providers = list_openai_legacy_providers(loaded_config)
         assert len(providers) == 1

@@ -186,9 +186,7 @@ async def add_openai_legacy_provider(
     return _build_global_config()
 
 
-@router.delete(
-    "/providers/openai-legacy/{name}", summary="Delete OpenAI Legacy provider"
-)
+@router.delete("/providers/openai-legacy/{name}", summary="Delete OpenAI Legacy provider")
 async def delete_openai_legacy_provider(
     name: str,
     http_request: Request,

@@ -206,53 +206,6 @@ async def refresh_managed_models(config: Config) -> bool:
     return changed
 
 
-# OpenAI Legacy multi-URL support functions
-
-def parse_openai_legacy_name(provider_key: str) -> str | None:
-    """Parse custom name from OpenAI Legacy provider key.
-    
-    Args:
-        provider_key: Provider key in format "managed:openai-legacy:{name}"
-        
-    Returns:
-        Custom name if valid, None otherwise
-    """
-    if not provider_key.startswith("managed:openai-legacy:"):
-        return None
-    name = provider_key.removeprefix("managed:openai-legacy:")
-    return name if name else None
-
-
-def make_openai_legacy_provider_key(name: str) -> str:
-    """Create provider key for OpenAI Legacy with custom name.
-    
-    Args:
-        name: Custom name for the OpenAI Legacy URL
-        
-    Returns:
-        Provider key in format "managed:openai-legacy:{name}"
-    """
-    return f"managed:openai-legacy:{name}"
-
-
-def list_openai_legacy_providers(config: Config) -> list[tuple[str, LLMProvider]]:
-    """List all OpenAI Legacy providers with their custom names.
-
-    Args:
-        config: Configuration object
-
-    Returns:
-        List of tuples (custom_name, provider) for OpenAI Legacy providers
-    """
-    result = []
-    for key, provider in config.providers.items():
-        if key.startswith("managed:openai-legacy:"):
-            name = parse_openai_legacy_name(key)
-            if name:
-                result.append((name, provider))
-    return result
-
-
 def add_openai_legacy_provider(
     config: Config,
     name: str,
@@ -300,7 +253,6 @@ def delete_openai_legacy_provider(config: Config, name: str) -> bool:
     del config.providers[provider_key]
 
     # Remove all models associated with this provider
-    platform_id = f"openai-legacy:{name}"
     removed_default = False
     for key, model in list(config.models.items()):
         if model.provider == provider_key:
@@ -309,9 +261,10 @@ def delete_openai_legacy_provider(config: Config, name: str) -> bool:
                 removed_default = True
 
     if removed_default:
-        config.default_model = None
+        config.default_model = ""
 
     return True
+
 
 async def list_models(
     platform: Platform,
@@ -444,12 +397,13 @@ def _apply_models(
 
 # OpenAI Legacy multi-URL support functions
 
+
 def parse_openai_legacy_name(provider_key: str) -> str | None:
     """Parse custom name from OpenAI Legacy provider key.
-    
+
     Args:
         provider_key: Provider key in format "managed:openai-legacy:{name}"
-        
+
     Returns:
         Custom name if valid, None otherwise
     """
@@ -461,10 +415,10 @@ def parse_openai_legacy_name(provider_key: str) -> str | None:
 
 def make_openai_legacy_provider_key(name: str) -> str:
     """Create provider key for OpenAI Legacy with custom name.
-    
+
     Args:
         name: Custom name for the OpenAI Legacy URL
-        
+
     Returns:
         Provider key in format "managed:openai-legacy:{name}"
     """
@@ -473,17 +427,17 @@ def make_openai_legacy_provider_key(name: str) -> str:
 
 def list_openai_legacy_providers(config: Config) -> list[tuple[str, LLMProvider]]:
     """List all OpenAI Legacy providers with their custom names.
-    
+
     Args:
         config: Configuration object
-        
+
     Returns:
         List of tuples (custom_name, provider) for OpenAI Legacy providers
     """
-    result = []
+    result: list[tuple[str, LLMProvider]] = []
     for key, provider in config.providers.items():
         if key.startswith("managed:openai-legacy:"):
             name = parse_openai_legacy_name(key)
             if name:
-                result.append((name, provider))
+                result.append((str(name), provider))
     return result

@@ -1,12 +1,13 @@
 """Tests for OpenAI Legacy multi-URL helper functions."""
 
+from pydantic import SecretStr
+
 from kimi_cli.auth.platforms import (
     list_openai_legacy_providers,
-    parse_openai_legacy_name,
     make_openai_legacy_provider_key,
+    parse_openai_legacy_name,
 )
-from kimi_cli.config import Config, LLMProvider, LLMModel
-from pydantic import SecretStr
+from kimi_cli.config import Config, LLMProvider
 
 
 def test_parse_openai_legacy_name_valid():
