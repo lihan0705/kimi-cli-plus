@@ -16,6 +16,8 @@ wheels/
 /tests_local
 uv.toml
 .idea/*
+superpowers
+conductor
 
 # Build dependencies
 src/kimi_cli/deps/bin
