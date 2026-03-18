@@ -1,8 +1,8 @@
-# Kimi Code CLI
+# Kimi Code Plus 🚀
 
 <p align="center">
-  <strong>An autonomous AI engineer in your terminal.</strong><br>
-  Built for developers who value speed, precision, and a clean, monochrome aesthetic.
+  <strong>The enhanced, multi-provider powered evolution of Kimi Code CLI.</strong><br>
+  Built for developers who need maximum flexibility with a clean, monochrome aesthetic.
 </p>
 
 <p align="center">
@@ -13,74 +13,61 @@
 
 ---
 
-Kimi Code CLI is a high-performance AI agent that seamlessly integrates with your terminal and development environment. It plans autonomously, executes shell commands, and handles complex code editing tasks with ease.
+## ✨ The "Plus" Advantage
 
-## Key Capabilities
+This version extends the original Kimi Code CLI with critical features for professional workflows:
 
-### ⚡ Interactive Terminal
-Toggle **Shell Mode** with `Ctrl-X` to execute system commands directly without leaving the agent.
-<p align="center">
-  <img src="./docs/media/shell-mode.gif" width="800" alt="Shell Mode">
-</p>
+### 🛠️ Multi-OpenAI Legacy Support
+Stop overwriting your config. Manage multiple OpenAI-compatible endpoints (DeepSeek, GLM, Local LLMs) simultaneously with custom names.
+- **CLI Power**: [Switch models globally](./docs/media/allURLmodel.png) with clear provider attribution.
+- **Web Dashboard**: A dedicated [Management UI](./docs/media/simpleurlmanage.png) to add/delete endpoints on the fly.
 
-### 🌐 Rich Web Interface
-Manage sessions and configuration through a clean, modern local web UI.
-<p align="center">
-  <img src="./docs/media/webmodelselect.png" width="800" alt="Web UI">
-</p>
+### 🌐 Next-Gen Web Interface
+A completely redesigned, monochrome web experience that feels like a professional IDE tool, not just a chat window.
+- **Visual Model Selector**: [Browse and search](./docs/media/webmodelselect.png) models across all your configured providers.
+- **Instant Sync**: Adding a provider in the web UI automatically refreshes and populates the model list.
 
-### 🛠 Flexible Provider Management
-Easily manage multiple OpenAI-compatible API endpoints with custom names and configurations.
-<p align="center">
-  <img src="./docs/media/simpleurlmanage.png" width="800" alt="URL Management">
-</p>
-
-### 🔌 IDE & Protocol Support
-Deep integration with **VS Code**, **Zed**, **JetBrains**, and full **Model Context Protocol (MCP)** support.
-<p align="center">
-  <img src="./docs/media/vscode.png" width="800" alt="VS Code Integration">
-</p>
+### ⚡ Performance & Polish
+- **Optimized vLLM Support**: Correct model identification for local vLLM/Ollama endpoints using `max_model_len`.
+- **Surgical Code Editing**: Refined `edit` tool validation for more reliable autonomous programming.
+- **Monochrome Aesthetic**: Deeply integrated shadcn/ui style for a distraction-free environment.
 
 ---
 
-## Quick Start
+## 🚀 Capabilities
 
-### 1. Installation
+- **Shell Mode**: Toggle `Ctrl-X` to run terminal commands directly.
+- **Autonomous Planning**: Let the agent handle complex multi-step engineering tasks.
+- **IDE Integration**: Works seamlessly with **VS Code**, **Zed**, and **JetBrains**.
+- **MCP Native**: Full support for the Model Context Protocol ecosystem.
 
-Install via the one-click script:
+---
+
+## 📦 Quick Start
+
+### Installation
 ```bash
 curl -LsSf https://raw.githubusercontent.com/lihan0705/kimi-cli-plus/main/scripts/install.sh | bash
 ```
+*Requires Python 3.12+ and Node.js 22+.*
 
-*Requires Python 3.12+ and Node.js 22+ (for Web UI).*
-
-### 2. Configuration
-
-Run `kimi` and use `/login` to set up your primary model. For custom OpenAI-compatible providers:
-1. Choose **"OpenAI Legacy (Custom URL)"**.
-2. Define a **Configuration Name** (e.g., "deepseek").
-3. Provide your **API Base URL** and **API Key**.
-
-### 3. Usage
-
-```bash
-kimi                # Start interactive session
-kimi --web          # Launch with Web UI
-kimi --model gpt-4  # Force specific model
-```
+### Configuration
+Run `kimi` and use `/login` to set up your providers.
+1. Select **"OpenAI Legacy (Custom URL)"**.
+2. Name it (e.g., `deepseek`), add your URL and API Key.
+3. Start coding.
 
 ---
 
-## Development
+## 🛠️ Development
 
 ```bash
-uv run kimi         # Local run
-make check          # Quality check (lint/types)
-make test           # Run suite
-make build-web      # Rebuild Web UI
+uv run kimi         # Run locally
+make build-web      # Build the enhanced UI
+make test           # Run verification suite
 ```
 
 <p align="center">
-  <a href="https://github.com/lihan0705/kimi-cli-plus/issues/new/choose">Report Bug</a> •
-  <a href="https://github.com/lihan0705/kimi-cli-plus/blob/main/CONTRIBUTING.md">Contributing</a>
+  <a href="https://github.com/lihan0705/kimi-cli-plus/issues">Report Issue</a> •
+  <a href="https://github.com/lihan0705/kimi-cli-plus/blob/main/CONTRIBUTING.md">Contribute</a>
 </p>
