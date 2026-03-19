@@ -382,7 +382,8 @@ def normalize_value(value: Any, *, replacements: Mapping[str, str] | None = None
         normalized = _normalize_shell_display(normalized)
         normalized = _normalize_error_data(normalized)
         normalized = _normalize_tool_result_extras(normalized)
-        return normalized
+        # Sort dict keys to ensure consistent ordering for snapshot comparison
+        return dict(sorted(normalized.items()))
     if isinstance(value, list):
         return [normalize_value(v, replacements=active_replacements) for v in value]
     if isinstance(value, float):
