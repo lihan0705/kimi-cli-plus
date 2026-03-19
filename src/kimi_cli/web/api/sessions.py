@@ -1050,6 +1050,85 @@ Title:"""
     return GenerateTitleResponse(title=title)
 
 
+# Bookmark endpoints for conversation turns
+class BookmarkTurnRequest(BaseModel):
+    """Request to bookmark a conversation turn."""
+
+    turn_index: int = Field(..., description="The turn index to bookmark")
+
+
+class BookmarkTurnResponse(BaseModel):
+    """Response after bookmarking operation."""
+
+    bookmarked_turns: list[int] = Field(..., description="Current list of bookmarked turn indices")
+
+
+@router.post("/{session_id}/bookmark", summary="Add a turn bookmark")
+async def add_bookmark(
+    session_id: UUID,
+    request: BookmarkTurnRequest,
+    runner: KimiCLIRunner = Depends(get_runner),
+) -> BookmarkTurnResponse:
+    """Add a conversation turn to bookmarks."""
+    session = get_editable_session(session_id, runner)
+    session_dir = session.kimi_cli_session.dir
+
+    # Load existing metadata
+    metadata = load_session_metadata(session_dir, str(session_id))
+
+    # Add turn to bookmarks if not already present
+    bookmarked_turns = list(metadata.bookmarked_turns)
+    if request.turn_index not in bookmarked_turns:
+        bookmarked_turns.append(request.turn_index)
+        bookmarked_turns.sort()  # Keep sorted
+
+        metadata = metadata.model_copy(update={"bookmarked_turns": bookmarked_turns})
+        save_session_metadata(session_dir, metadata)
+        invalidate_sessions_cache()
+
+    return BookmarkTurnResponse(bookmarked_turns=bookmarked_turns)
+
+
+@router.delete("/{session_id}/bookmark/{turn_index}", summary="Remove a turn bookmark")
+async def remove_bookmark(
+    session_id: UUID,
+    turn_index: int,
+    runner: KimiCLIRunner = Depends(get_runner),
+) -> BookmarkTurnResponse:
+    """Remove a conversation turn from bookmarks."""
+    session = get_editable_session(session_id, runner)
+    session_dir = session.kimi_cli_session.dir
+
+    # Load existing metadata
+    metadata = load_session_metadata(session_dir, str(session_id))
+
+    # Remove turn from bookmarks
+    bookmarked_turns = list(metadata.bookmarked_turns)
+    if turn_index in bookmarked_turns:
+        bookmarked_turns.remove(turn_index)
+
+        metadata = metadata.model_copy(update={"bookmarked_turns": bookmarked_turns})
+        save_session_metadata(session_dir, metadata)
+        invalidate_sessions_cache()
+
+    return BookmarkTurnResponse(bookmarked_turns=bookmarked_turns)
+
+
+@router.get("/{session_id}/bookmarks", summary="Get all bookmarks for a session")
+async def get_bookmarks(
+    session_id: UUID,
+    runner: KimiCLIRunner = Depends(get_runner),
+) -> BookmarkTurnResponse:
+    """Get all bookmarked turns for a session."""
+    session = get_editable_session(session_id, runner)
+    session_dir = session.kimi_cli_session.dir
+
+    # Load existing metadata
+    metadata = load_session_metadata(session_dir, str(session_id))
+
+    return BookmarkTurnResponse(bookmarked_turns=metadata.bookmarked_turns)
+
+
 @router.websocket("/{session_id}/stream")
 async def session_stream(
     session_id: UUID,

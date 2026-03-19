@@ -76,6 +76,7 @@ class SessionMetadata(BaseModel):
     archived: bool = False
     archived_at: float | None = None
     auto_archive_exempt: bool = False  # True if user manually unarchived, exempt from auto-archive
+    bookmarked_turns: list[int] = Field(default_factory=list)  # Bookmarked turn indices
 
 
 @dataclass(slots=True)
