@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { LiveMessage } from "@/hooks/types";
 import {
   Tooltip,
@@ -27,7 +28,7 @@ function extractTurns(messages: LiveMessage[]) {
   messages.forEach((message, index) => {
     if (message.role === "user") {
       turns.push({
-        turnIndex: message.turnIndex ?? turns.length,
+        turnIndex: message.turnIndex !== undefined ? message.turnIndex : turns.length,
         messageIndex: index,
         content: message.content ?? "",
       });
@@ -45,7 +46,7 @@ function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength - 1) + "…";
 }
 
-export function TurnNavigator({
+export const TurnNavigator = memo(function TurnNavigator({
   messages,
   visible,
   onNavigateToTurn,
