@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import type { LiveMessage } from "@/hooks/types";
 import {
   Tooltip,
@@ -51,6 +51,7 @@ export const TurnNavigator = memo(function TurnNavigator({
   visible,
   onNavigateToTurn,
 }: TurnNavigatorProps) {
+  const [isHovered, setIsHovered] = useState(false);
   const turns = extractTurns(messages);
 
   // Don't render if there are fewer than 2 turns
@@ -63,13 +64,19 @@ export const TurnNavigator = memo(function TurnNavigator({
       className={cn(
         "fixed right-0 top-0 z-10 h-full py-16",
         "flex flex-col items-center justify-center gap-1",
-        "transition-opacity duration-200",
-        visible ? "opacity-100" : "opacity-0 pointer-events-none"
+        "transition-all duration-200",
+        visible ? (isHovered ? "opacity-100" : "opacity-30") : "opacity-0 pointer-events-none"
       )}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       role="navigation"
       aria-label="Conversation turns"
     >
-      <div className="flex flex-col items-center gap-1 rounded-l-md bg-muted/50 px-1 py-2 backdrop-blur-sm">
+      <div className={cn(
+        "flex flex-col items-center gap-1 rounded-l-md px-1 py-2",
+        "transition-all duration-200",
+        isHovered ? "bg-muted/50 backdrop-blur-sm" : "bg-transparent"
+      )}>
         {turns.map((turn) => (
           <Tooltip key={turn.turnIndex}>
             <TooltipTrigger asChild>
