@@ -230,21 +230,31 @@ and skill workflows.
 ### `ty` (Type Checker) - Non-blocking Diagnostic Tool
 
 - **Configuration**: Enabled in `Makefile` (all packages use `ty check || true`), making it non-blocking.
-- **Status**: `make check` passes even with `ty` warnings/errors.
-- **Version**: Locked via `pyproject.toml:47` (`ty>=0.0.9`) and `uv.lock` (currently `0.0.21`).
-  - Upstream (`MoonshotAI/kimi-cli/main`) uses `ty==0.0.14`.
-  - Version differences may cause variance in diagnostics.
+- **Status**: `make check` can pass even when `ty` reports diagnostics.
+- **Version Policy**: pin `ty` to upstream baseline.
+  - Current baseline: `ty==0.0.14` (aligned with `MoonshotAI/kimi-cli/main`).
+  - Keep `pyproject.toml` and `uv.lock` in sync when bumping.
 
-### Known Issue: `unused-type-ignore-comment` Warnings
+### Programming Rule: Suppression Comments
 
-**Root Cause**: Code contains many `# type: ignore[reportXxx]` comments using **pyright-style error codes** (e.g., `reportUnnecessaryIsInstance`, `reportMissingParameterType`). `ty` uses a completely different rule system (e.g., `invalid-argument-type`, `no-matching-overload`) and cannot recognize pyright codes, so it flags them as unused.
+To avoid conflicts between Pyright and ty, use suppression comments by **tool namespace**:
 
-**Sources of Warnings**:
-1. **Test files**: `tests/utils/test_slash_command.py:122,128,134,140,146,150,157,188,202` (9 instances of `reportUnusedFunction`).
-2. **kosong tooling**: `packages/kosong/src/kosong/tooling/__init__.py:201,223,227,260,268,276,301` (5+ instances of `reportUnnecessaryIsInstance`, `reportMissingParameterType`).
-3. **Local additions**: `src/kimi_cli/web/runner/process.py:454-463` (PIL image handling with `attr-defined`, `reportUnknownMemberType`, etc.).
+1. **Pyright-only suppressions** must use:
+   - `# pyright: ignore[reportXxx]`
+   - Example: `# pyright: ignore[reportPrivateUsage]`
 
-**Strategy**:
-- These warnings are **non-blocking** and safe to clean up incrementally.
-- When cleaning, verify that `pyright` (the blocking type checker) still passes.
-- Consider aligning `ty` version with upstream when appropriate.
+2. **Do not** use Pyright rule names in `# type: ignore[...]`.
+   - Bad: `# type: ignore[reportMissingTypeStubs]`
+   - This causes ty `unused-ignore-comment` diagnostics.
+
+3. **`# type: ignore[...]`** is only for ty/typing-rule suppressions when truly needed.
+   - Example: `# type: ignore[invalid-method-override]`, `# type: ignore[unresolved-reference]`
+
+4. If one line needs both tools, keep both comments on the same line with clear ownership.
+
+### Maintenance Notes
+
+- After any suppression update, run `make check` to verify:
+  - Pyright remains green (blocking)
+  - ty diagnostics are expected/non-blocking
+- Prefer fixing types over adding suppressions.

@@ -847,6 +847,6 @@ class FlowRunner:
         prompt: str | list[ContentPart],
     ) -> TurnOutcome:
         wire_send(TurnBegin(user_input=prompt))
-        res = await soul._turn(Message(role="user", content=prompt))  # type: ignore[reportPrivateUsage]
+        res = await soul._turn(Message(role="user", content=prompt))  # pyright: ignore[reportPrivateUsage]
         wire_send(TurnEnd())
         return res

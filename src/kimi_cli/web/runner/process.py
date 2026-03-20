@@ -451,16 +451,16 @@ class SessionProcess:
             if is_vision and mime_type.startswith("image/"):
                 try:
                     content = file.read_bytes()
-                    with Image.open(io.BytesIO(content)) as img:  # type: ignore[attr-defined]
-                        pil_img = img  # type: ignore[assignment]
-                        width, height = pil_img.size  # type: ignore[attr-defined]
-                        max_side = max(width, height)  # type: ignore[reportUnknownArgumentType]
+                    with Image.open(io.BytesIO(content)) as img:  # pyright: ignore[attr-defined]
+                        pil_img = img  # pyright: ignore[assignment]
+                        width, height = pil_img.size  # pyright: ignore[attr-defined]
+                        max_side = max(width, height)  # pyright: ignore[reportUnknownArgumentType]
                         if max_side > 4096:
-                            scale = 4096 / max_side  # type: ignore[reportUnknownVariableType]
-                            new_size = (int(width * scale), int(height * scale))  # type: ignore[reportUnknownVariableType]
-                            pil_img = pil_img.resize(new_size)  # type: ignore[reportUnknownMemberType]
+                            scale = 4096 / max_side  # pyright: ignore[reportUnknownVariableType]
+                            new_size = (int(width * scale), int(height * scale))  # pyright: ignore[reportUnknownVariableType]
+                            pil_img = pil_img.resize(new_size)  # pyright: ignore[reportUnknownMemberType]
                         buffer = io.BytesIO()
-                        pil_img.save(buffer, format="PNG")  # type: ignore[reportUnknownMemberType]
+                        pil_img.save(buffer, format="PNG")  # pyright: ignore[reportUnknownMemberType]
                         encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
                         tag = f'<image path="{file_path}" content_type="{mime_type}">'
                         yield TextPart(text=tag)

@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from typing import Any, NamedTuple, cast
 
-import streamingjson  # type: ignore[reportMissingTypeStubs]
+import streamingjson  # pyright: ignore[reportMissingTypeStubs]
 from kosong.tooling import ToolError, ToolOk
 from rich.console import Group, RenderableType
 from rich.live import Live
@@ -786,7 +786,7 @@ class _LiveView:
         # Rich doesn't expose a public API to clear Live's cached render height.
         # After leaving the pager, stale height causes cursor restores to jump,
         # so we reset the private _shape to re-anchor the next refresh.
-        live._live_render._shape = None  # type: ignore[reportPrivateUsage]
+        live._live_render._shape = None  # pyright: ignore[reportPrivateUsage]
 
     async def visualize_loop(self, wire: WireUISide):
         with Live(

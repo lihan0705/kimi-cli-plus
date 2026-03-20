@@ -156,6 +156,8 @@ async def refresh_managed_models(config: Config) -> bool:
                 logger.warning("Managed platform not found: {platform}", platform=platform_id)
                 continue
 
+        assert platform is not None
+
         api_key = provider.api_key.get_secret_value()
         if not api_key and provider.oauth:
             from kimi_cli.auth.oauth import load_tokens

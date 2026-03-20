@@ -150,7 +150,7 @@ def test_simple_toolset():
         }
 
         @override
-        async def __call__(self) -> str:  # type: ignore[reportIncompatibleMethodOverride]
+        async def __call__(self) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]  # type: ignore[invalid-method-override]
             return "invalid return type"
 
     toolset = SimpleToolset([PlusTool()])
@@ -337,7 +337,7 @@ def test_simple_toolset_with_string_annotation_callable_tool():
         }
 
         @override
-        async def __call__(self) -> "ToolReturnValue":  # type: ignore[reportIncompatibleMethodOverride]
+        async def __call__(self) -> "ToolReturnValue":  # pyright: ignore[reportIncompatibleMethodOverride]
             return ToolOk(output="test")
 
     # Verify the annotation is actually a string
@@ -361,11 +361,11 @@ def test_simple_toolset_with_invalid_string_annotation_rejected():
         }
 
         @override
-        async def __call__(self) -> "InvalidType":  # noqa: F821  # type: ignore[reportUnknownParameterType]
-            return ToolOk(output="test")  # type: ignore[return-value]
+        async def __call__(self) -> "InvalidType":  # noqa: F821  # pyright: ignore[reportUnknownParameterType, reportUndefinedVariable]  # type: ignore[unresolved-reference]
+            return ToolOk(output="test")  # pyright: ignore[reportReturnType]
 
     tool_instance = TestTool()
-    sig = inspect.signature(tool_instance.__call__)  # type: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+    sig = inspect.signature(tool_instance.__call__)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
     # Verify the annotation is actually a string
     assert isinstance(sig.return_annotation, str)
 

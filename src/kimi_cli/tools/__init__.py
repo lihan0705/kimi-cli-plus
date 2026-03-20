@@ -1,7 +1,7 @@
 import json
 from typing import cast
 
-import streamingjson  # type: ignore[reportMissingTypeStubs]
+import streamingjson  # pyright: ignore[reportMissingTypeStubs]
 from kaos.path import KaosPath
 from kosong.utils.typing import JsonType
 
@@ -82,7 +82,7 @@ def extract_key_argument(json_content: str | streamingjson.Lexer, tool_name: str
         case _:
             if isinstance(json_content, streamingjson.Lexer):
                 # lexer.json_content is list[str] based on streamingjson source code
-                content: list[str] = cast(list[str], json_content.json_content)  # type: ignore[reportUnknownMemberType]
+                content: list[str] = cast(list[str], json_content.json_content)  # pyright: ignore[reportUnknownMemberType]
                 key_argument = "".join(content)
             else:
                 key_argument = json_content

@@ -133,7 +133,10 @@ def _wire_has_text(events: list[dict[str, object]], text: str) -> bool:
         payload = event.get("payload", {})
         if not isinstance(payload, dict):
             continue
-        if cast(str, payload.get("type")) == "text" and text in str(payload.get("text", "")):
+        payload_dict = cast(dict[str, object], payload)
+        if cast(str, payload_dict.get("type")) == "text" and text in str(
+            payload_dict.get("text", "")
+        ):
             return True
     return False
 
@@ -316,7 +319,8 @@ async def test_scripted_echo_kimi_cli_agent_e2e(
         assert return_code == 0
         result = resp.get("result")
         assert isinstance(result, dict)
-        assert cast(str, result.get("status")) == "finished"
+        result_dict = cast(dict[str, object], result)
+        assert cast(str, result_dict.get("status")) == "finished"
         assert _wire_has_text(events, "Translation completed successfully.")
     elif mode == "shell":
         return_code, stdout_lines = _run_shell_mode(config_path, work_dir, user_prompt)

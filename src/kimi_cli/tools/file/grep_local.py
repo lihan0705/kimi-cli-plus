@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import override
 
 import aiohttp
-import ripgrepy  # type: ignore[reportMissingTypeStubs]
+import ripgrepy  # pyright: ignore[reportMissingTypeStubs]
 from kosong.tooling import CallableTool2, ToolError, ToolReturnValue
 from pydantic import BaseModel, Field
 

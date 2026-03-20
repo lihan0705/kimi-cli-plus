@@ -150,16 +150,16 @@ class GoogleGenAI:
 
         try:
             if self._stream:
-                stream_response = await self._client.aio.models.generate_content_stream(  # type: ignore[reportUnknownMemberType]
+                stream_response = await self._client.aio.models.generate_content_stream(  # pyright: ignore[reportUnknownMemberType]
                     model=self._model,
-                    contents=contents,  # type: ignore[reportArgumentType]
+                    contents=cast(Any, contents),
                     config=config,
                 )
                 return GoogleGenAIStreamedMessage(stream_response)
             else:
-                response = await self._client.aio.models.generate_content(  # type: ignore[reportUnknownMemberType]
+                response = await self._client.aio.models.generate_content(  # pyright: ignore[reportUnknownMemberType]
                     model=self._model,
-                    contents=contents,  # type: ignore[reportArgumentType]
+                    contents=cast(Any, contents),
                     config=config,
                 )
                 return GoogleGenAIStreamedMessage(response)

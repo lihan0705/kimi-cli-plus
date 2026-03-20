@@ -42,7 +42,7 @@ def test_negotiate_negative_version():
 def test_version_spec_immutable():
     """CURRENT_VERSION is a frozen dataclass and cannot be mutated."""
     assert dataclasses.is_dataclass(CURRENT_VERSION)
-    assert CURRENT_VERSION.__dataclass_params__.frozen  # type: ignore[attr-defined]
+    assert CURRENT_VERSION.__dataclass_params__.frozen  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_supported_versions_contains_current():

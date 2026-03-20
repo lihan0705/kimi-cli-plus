@@ -42,6 +42,6 @@ async def test_retry_recovery_does_not_close_shared_http_client() -> None:
     await asyncio.sleep(0)
     await asyncio.sleep(0)
 
-    assert provider.client._client is http_client  # type: ignore[reportPrivateUsage]
+    assert provider.client._client is http_client  # pyright: ignore[reportPrivateUsage]
     assert http_client.is_closed is False
     await http_client.aclose()
