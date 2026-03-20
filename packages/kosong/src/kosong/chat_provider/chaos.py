@@ -140,7 +140,7 @@ class ChaosChatProvider:
             )
 
         chaos_transport = ChaosTransport(transport, self._chaos_config)
-        transport_owner._transport = chaos_transport  # type: ignore[reportPrivateUsage]
+        transport_owner._transport = chaos_transport
 
     def _find_transport_owner(self) -> Any:
         """Locate the object that owns the httpx transport."""

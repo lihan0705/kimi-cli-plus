@@ -373,7 +373,7 @@ class ShapeData:
             if not hasattr(shape, "placeholder_format"):
                 return None
 
-            shape_type = shape.placeholder_format.type  # type: ignore
+            shape_type = shape.placeholder_format.type
             for layout_placeholder in slide_layout.placeholders:
                 if layout_placeholder.placeholder_format.type == shape_type:
                     # Find first defRPr element with sz (size) attribute
@@ -411,10 +411,10 @@ class ShapeData:
         # Get placeholder type if applicable
         self.placeholder_type: str | None = None
         self.default_font_size: float | None = None
-        if hasattr(shape, "is_placeholder") and shape.is_placeholder:  # type: ignore
-            if shape.placeholder_format and shape.placeholder_format.type:  # type: ignore
+        if hasattr(shape, "is_placeholder") and shape.is_placeholder:
+            if shape.placeholder_format and shape.placeholder_format.type:
                 self.placeholder_type = (
-                    str(shape.placeholder_format.type).split(".")[-1].split(" ")[0]  # type: ignore
+                    str(shape.placeholder_format.type).split(".")[-1].split(" ")[0]
                 )
 
                 # Get default font size from layout
@@ -436,15 +436,15 @@ class ShapeData:
             else (shape.top if hasattr(shape, "top") else 0)
         )
 
-        self.left: float = round(self.emu_to_inches(left_emu), 2)  # type: ignore
-        self.top: float = round(self.emu_to_inches(top_emu), 2)  # type: ignore
+        self.left: float = round(self.emu_to_inches(left_emu), 2)
+        self.top: float = round(self.emu_to_inches(top_emu), 2)
         self.width: float = round(
             self.emu_to_inches(shape.width if hasattr(shape, "width") else 0),
-            2,  # type: ignore
+            2,
         )
         self.height: float = round(
             self.emu_to_inches(shape.height if hasattr(shape, "height") else 0),
-            2,  # type: ignore
+            2,
         )
 
         # Store EMU positions for overflow calculations
@@ -472,7 +472,7 @@ class ShapeData:
             return []
 
         paragraphs = []
-        for paragraph in self.shape.text_frame.paragraphs:  # type: ignore
+        for paragraph in self.shape.text_frame.paragraphs:
             if paragraph.text.strip():
                 paragraphs.append(ParagraphData(paragraph))
         return paragraphs
@@ -485,7 +485,7 @@ class ShapeData:
             ):
                 return 14
 
-            slide_master = self.shape.part.slide_layout.slide_master  # type: ignore
+            slide_master = self.shape.part.slide_layout.slide_master
             if not hasattr(slide_master, "element"):
                 return 14
 
@@ -564,7 +564,7 @@ class ShapeData:
         if not self.shape or not hasattr(self.shape, "text_frame"):
             return
 
-        text_frame = self.shape.text_frame  # type: ignore
+        text_frame = self.shape.text_frame
         if not text_frame or not text_frame.paragraphs:
             return
 
@@ -662,7 +662,7 @@ class ShapeData:
         if not self.shape or not hasattr(self.shape, "text_frame"):
             return
 
-        text_frame = self.shape.text_frame  # type: ignore
+        text_frame = self.shape.text_frame
         if not text_frame or not text_frame.paragraphs:
             return
 
@@ -742,18 +742,18 @@ class ShapeData:
 def is_valid_shape(shape: BaseShape) -> bool:
     """Check if a shape contains meaningful text content."""
     # Must have a text frame with content
-    if not hasattr(shape, "text_frame") or not shape.text_frame:  # type: ignore
+    if not hasattr(shape, "text_frame") or not shape.text_frame:
         return False
 
-    text = shape.text_frame.text.strip()  # type: ignore
+    text = shape.text_frame.text.strip()
     if not text:
         return False
 
     # Skip slide numbers and numeric footers
-    if hasattr(shape, "is_placeholder") and shape.is_placeholder:  # type: ignore
-        if shape.placeholder_format and shape.placeholder_format.type:  # type: ignore
+    if hasattr(shape, "is_placeholder") and shape.is_placeholder:
+        if shape.placeholder_format and shape.placeholder_format.type:
             placeholder_type = (
-                str(shape.placeholder_format.type).split(".")[-1].split(" ")[0]  # type: ignore
+                str(shape.placeholder_format.type).split(".")[-1].split(" ")[0]
             )
             if placeholder_type == "SLIDE_NUMBER":
                 return False
@@ -791,7 +791,7 @@ def collect_shapes_with_absolute_positions(
         abs_group_top = parent_top + group_top
 
         # Process children with accumulated offsets
-        for child in shape.shapes:  # type: ignore
+        for child in shape.shapes:
             result.extend(
                 collect_shapes_with_absolute_positions(
                     child, abs_group_left, abs_group_top
@@ -933,7 +933,7 @@ def extract_text_inventory(
     for slide_idx, slide in enumerate(prs.slides):
         # Collect all valid shapes from this slide with absolute positions
         shapes_with_positions = []
-        for shape in slide.shapes:  # type: ignore
+        for shape in slide.shapes:
             shapes_with_positions.extend(collect_shapes_with_absolute_positions(shape))
 
         if not shapes_with_positions:

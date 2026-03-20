@@ -49,7 +49,7 @@ def close_openai_client(client: AsyncOpenAI) -> None:
         loop = asyncio.get_running_loop()
     except RuntimeError:
         if hasattr(result, "close"):
-            result.close()  # type: ignore[attr-defined]
+            result.close()
         return
     loop.create_task(_drain_awaitable(cast(Awaitable[object], result)))
 

@@ -327,15 +327,15 @@ class XMLEditor:
         if root_elem and root_elem.attributes:
             for i in range(root_elem.attributes.length):
                 attr = root_elem.attributes.item(i)
-                if attr.name.startswith("xmlns"):  # type: ignore
-                    namespaces.append(f'{attr.name}="{attr.value}"')  # type: ignore
+                if attr.name.startswith("xmlns"):
+                    namespaces.append(f'{attr.name}="{attr.value}"')
 
         ns_decl = " ".join(namespaces)
         wrapper = f"<root {ns_decl}>{xml_content}</root>"
         fragment_doc = defusedxml.minidom.parseString(wrapper)
         nodes = [
             self.dom.importNode(child, deep=True)
-            for child in fragment_doc.documentElement.childNodes  # type: ignore
+            for child in fragment_doc.documentElement.childNodes
         ]
         elements = [n for n in nodes if n.nodeType == n.ELEMENT_NODE]
         assert elements, "Fragment must contain at least one element"
@@ -359,8 +359,8 @@ def _create_line_tracking_parser():
             orig_start_cb(name, tagName, attrs)
             cur_elem = dom_handler.elementStack[-1]
             cur_elem.parse_position = (
-                parser._parser.CurrentLineNumber,  # type: ignore
-                parser._parser.CurrentColumnNumber,  # type: ignore
+                parser._parser.CurrentLineNumber,
+                parser._parser.CurrentColumnNumber,
             )
 
         orig_start_cb = dom_handler.startElementNS
@@ -369,5 +369,5 @@ def _create_line_tracking_parser():
 
     parser = defusedxml.sax.make_parser()
     orig_set_content_handler = parser.setContentHandler
-    parser.setContentHandler = set_content_handler  # type: ignore
+    parser.setContentHandler = set_content_handler
     return parser

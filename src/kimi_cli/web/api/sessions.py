@@ -229,8 +229,9 @@ def _read_wire_lines(wire_file: Path) -> list[str]:
                     # QuestionRequest.id).  Note: ``message_raw`` wraps data
                     # as ``{"type": ..., "payload": {...}}`` so the id lives
                     # on the deserialized object, not at the raw dict top level.
-                    event_msg["id"] = message.id
-                result.append(json.dumps(event_msg, ensure_ascii=False))
+                    if hasattr(message, "id"):
+                        event_msg["id"] = message.id
+                    result.append(json.dumps(event_msg, ensure_ascii=False))
             except (json.JSONDecodeError, KeyError, ValueError, TypeError):
                 continue
     return result

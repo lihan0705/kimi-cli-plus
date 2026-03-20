@@ -89,8 +89,8 @@ class DocxXMLEditor(XMLEditor):
     def _ensure_w16du_namespace(self):
         """Ensure w16du namespace is declared on the root element."""
         root = self.dom.documentElement
-        if not root.hasAttribute("xmlns:w16du"):  # type: ignore
-            root.setAttribute(  # type: ignore
+        if not root.hasAttribute("xmlns:w16du"):
+            root.setAttribute(
                 "xmlns:w16du",
                 "http://schemas.microsoft.com/office/word/2023/wordml/word16du",
             )
@@ -98,8 +98,8 @@ class DocxXMLEditor(XMLEditor):
     def _ensure_w16cex_namespace(self):
         """Ensure w16cex namespace is declared on the root element."""
         root = self.dom.documentElement
-        if not root.hasAttribute("xmlns:w16cex"):  # type: ignore
-            root.setAttribute(  # type: ignore
+        if not root.hasAttribute("xmlns:w16cex"):
+            root.setAttribute(
                 "xmlns:w16cex",
                 "http://schemas.microsoft.com/office/word/2018/wordml/cex",
             )
@@ -107,8 +107,8 @@ class DocxXMLEditor(XMLEditor):
     def _ensure_w14_namespace(self):
         """Ensure w14 namespace is declared on the root element."""
         root = self.dom.documentElement
-        if not root.hasAttribute("xmlns:w14"):  # type: ignore
-            root.setAttribute(  # type: ignore
+        if not root.hasAttribute("xmlns:w14"):
+            root.setAttribute(
                 "xmlns:w14",
                 "http://schemas.microsoft.com/office/word/2010/wordml",
             )
@@ -977,7 +977,7 @@ class Document:
             return
 
         root = editor.dom.documentElement
-        root_tag = root.tagName  # type: ignore
+        root_tag = root.tagName
         prefix = root_tag.split(":")[0] + ":" if ":" in root_tag else ""
         next_rid = editor.get_next_rid()
 
@@ -1208,7 +1208,7 @@ class Document:
             return
 
         root = editor.dom.documentElement
-        root_tag = root.tagName  # type: ignore
+        root_tag = root.tagName
         prefix = root_tag.split(":")[0] + ":" if ":" in root_tag else ""
         next_rid_num = int(editor.get_next_rid()[3:])
 

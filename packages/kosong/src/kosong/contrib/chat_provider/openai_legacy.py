@@ -123,11 +123,11 @@ class OpenAILegacy:
             messages.append({"role": "system", "content": system_prompt})
         messages.extend(self._convert_message(message) for message in history)
 
-        generation_kwargs: dict[str, Any] = {}
-        generation_kwargs.update(self._generation_kwargs)
+        generation_kwargs: dict[str, Any] = self._generation_kwargs.copy()
 
         try:
-            response = await self.client.chat.completions.create(
+            create_call = cast(Any, self.client.chat.completions.create)
+            response = await create_call(
                 model=self.model,
                 messages=messages,
                 tools=(tool_to_openai(tool) for tool in tools),
@@ -136,7 +136,7 @@ class OpenAILegacy:
                 reasoning_effort=self._reasoning_effort,
                 **generation_kwargs,
             )
-            return OpenAILegacyStreamedMessage(response, self._reasoning_key)
+            return OpenAILegacyStreamedMessage(response, self._reasoning_key)  # pyright: ignore[reportUnknownArgumentType]
         except (OpenAIError, httpx.HTTPError) as e:
             raise convert_error(e) from e
 

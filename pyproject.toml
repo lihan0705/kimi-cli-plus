@@ -19,6 +19,7 @@ dependencies = [
     "ripgrepy==2.2.0",
     "streamingjson==0.0.5",
     "trafilatura==2.0.0",
+    "defusedxml==0.7.1",
     # lxml is used by trafilatura/htmldate/justext; keep pinned for binary wheels.
     "lxml==6.0.2",
     "tenacity==9.1.2",
@@ -115,6 +116,7 @@ include = [
     "tests_ai/scripts/**/*.py",
     "tests_e2e/**/*.py",
 ]
+exclude = ["src/kimi_cli/skills/"]
 
 [tool.typos.files]
 extend-exclude = ["kimi.spec", "pyinstaller.py"]

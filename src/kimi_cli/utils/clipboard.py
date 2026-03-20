@@ -44,9 +44,9 @@ def _open_first_image(paths: Iterable[os.PathLike[str] | str]) -> Image.Image | 
         if not path.is_file():
             continue
         try:
-            with Image.open(path) as img:
-                img.load()
-                return img.copy()
+            with Image.open(path) as img:  # type: ignore[attr-defined]
+                img.load()  # type: ignore[attr-defined]
+                return img.copy()  # type: ignore[attr-defined]
         except Exception:
             continue
     return None

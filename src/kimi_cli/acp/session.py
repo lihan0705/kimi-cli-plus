@@ -5,7 +5,7 @@ import uuid
 from contextvars import ContextVar
 
 import acp
-import streamingjson  # type: ignore[reportMissingTypeStubs]
+import streamingjson  # pyright: ignore[reportMissingTypeStubs]
 from kaos import Kaos, reset_current_kaos, set_current_kaos
 from kosong.chat_provider import ChatProviderError
 

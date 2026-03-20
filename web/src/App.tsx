@@ -76,6 +76,7 @@ function App() {
     loadMoreArchivedSessions,
     hasMoreSessions,
     hasMoreArchivedSessions,
+    isLoading,
     isLoadingMore,
     isLoadingMoreArchived,
     isLoadingArchived,
@@ -226,23 +227,36 @@ function App() {
 
   // Validate session exists once session list loads, clear URL if not found
   useEffect(() => {
-    if (sessions.length === 0 || !selectedSessionId) {
+    // Only validate if we have a selected ID and the initial lists have loaded
+    if (!selectedSessionId || (sessions.length === 0 && archivedSessions.length === 0)) {
       return;
     }
 
-    if (searchQuery.trim() || hasMoreSessions) {
+    // Skip validation during active loading or search to avoid false negatives
+    if (isLoading || isLoadingMore || searchQuery.trim() || hasMoreSessions) {
       return;
     }
 
-    const sessionExists = sessions.some(
-      (s) => s.sessionId === selectedSessionId,
-    );
+    // Check if session exists in either active or archived list
+    const sessionExists =
+      sessions.some((s) => s.sessionId === selectedSessionId) ||
+      archivedSessions.some((s) => s.sessionId === selectedSessionId);
+
     if (!sessionExists) {
-      console.log("[App] Session from URL not found, clearing selection");
+      console.log("[App] Session not found in list, clearing selection");
       updateUrlWithSession(null);
       selectSession("");
     }
-  }, [sessions, selectedSessionId, selectSession, hasMoreSessions, searchQuery]);
+  }, [
+    sessions,
+    archivedSessions,
+    selectedSessionId,
+    selectSession,
+    hasMoreSessions,
+    searchQuery,
+    isLoading,
+    isLoadingMore,
+  ]);
 
   // Update URL when selected session changes
   useEffect(() => {

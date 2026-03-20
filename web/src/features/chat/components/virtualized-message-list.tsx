@@ -18,7 +18,6 @@ import type React from "react";
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -163,9 +162,6 @@ function VirtualizedMessageListComponent(
   const virtuosoRef = useRef<VirtuosoHandle | null>(null);
   const scrollerRef = useRef<HTMLElement | null>(null);
 
-  // Track scroll position to preserve it across remounts
-  const scrollPositionRef = useRef<number>(0);
-
   // Filtered messages list (excluding message-id) aligned with listItems indices
   const filteredMessages = useMemo(
     () => messages.filter((m) => m.variant !== "message-id"),
@@ -192,11 +188,6 @@ function VirtualizedMessageListComponent(
     [],
   );
 
-  // Track scroll position changes
-  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    scrollPositionRef.current = event.currentTarget.scrollTop;
-  }, []);
-
   // Use a generous threshold to tolerate height estimation mismatches
   // when blocks are expanded (actual heights >> defaultItemHeight).
   // This is decoupled from atBottomStateChange which uses Virtuoso's
@@ -208,7 +199,7 @@ function VirtualizedMessageListComponent(
       if (scroller) {
         const gap =
           scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-        if (gap <= 1500) return "auto" as const;
+        if (gap <= 3000) return "auto" as const;
       }
       return false;
     },
@@ -240,26 +231,6 @@ function VirtualizedMessageListComponent(
     }),
     [listItems.length],
   );
-
-  // Restore scroll position after key change (remount)
-  useEffect(() => {
-    // Only restore if we have a conversation and a saved position
-    if (!conversationKey || conversationKey === "empty" || scrollPositionRef.current === 0) {
-      return;
-    }
-
-    // Small delay to ensure Virtuoso is fully remounted and has content
-    const timer = setTimeout(() => {
-      if (virtuosoRef.current && scrollPositionRef.current > 0) {
-        virtuosoRef.current.scrollTo({
-          top: scrollPositionRef.current,
-          behavior: "auto",
-        });
-      }
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, [conversationKey]);
 
   return (
     <Virtuoso
@@ -366,7 +337,6 @@ function VirtualizedMessageListComponent(
           </Message>
         );
       }}
-      onScroll={handleScroll}
     />
   );
 }

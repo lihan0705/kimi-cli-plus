@@ -30,9 +30,9 @@ def _extract_image_size(data: bytes) -> tuple[int, int] | None:
     except Exception:
         return None
     try:
-        with Image.open(BytesIO(data)) as image:
-            image.load()
-            return image.size
+        with Image.open(BytesIO(data)) as image:  # type: ignore[attr-defined]
+            image.load()  # type: ignore[attr-defined]
+            return image.size  # type: ignore[attr-defined]
     except Exception:
         return None
 

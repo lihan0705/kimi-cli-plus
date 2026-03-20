@@ -212,8 +212,7 @@ class Anthropic:
                         last_block["cache_control"] = CacheControlEphemeralParam(type="ephemeral")
                     case "thinking" | "redacted_thinking":
                         pass
-        generation_kwargs: dict[str, Any] = {}
-        generation_kwargs.update(self._generation_kwargs)
+        generation_kwargs: dict[str, Any] = self._generation_kwargs.copy()
         betas = generation_kwargs.pop("beta_features", [])
         extra_headers = {
             **{"anthropic-beta": ",".join(str(e) for e in betas)},
@@ -294,7 +293,7 @@ class Anthropic:
         """
 
         model_parameters: dict[str, Any] = {"base_url": str(self._client.base_url)}
-        model_parameters.update(self._generation_kwargs)
+        model_parameters.update(cast(dict[str, Any], self._generation_kwargs))
         return model_parameters
 
     def _convert_message(self, message: Message) -> MessageParam:
@@ -443,16 +442,22 @@ class AnthropicStreamedMessage:
                         block = event.content_block
                         match block.type:
                             case "text":
-                                yield TextPart(text=block.text)
+                                if hasattr(block, "text"):
+                                    yield TextPart(text=block.text)
                             case "thinking":
-                                yield ThinkPart(think=block.thinking)
+                                if hasattr(block, "thinking"):
+                                    yield ThinkPart(think=block.thinking)
                             case "redacted_thinking":
-                                yield ThinkPart(think="", encrypted=block.data)
+                                if hasattr(block, "data"):
+                                    yield ThinkPart(think="", encrypted=block.data)
                             case "tool_use":
-                                yield ToolCall(
-                                    id=block.id,
-                                    function=ToolCall.FunctionBody(name=block.name, arguments=""),
-                                )
+                                if hasattr(block, "id") and hasattr(block, "name"):
+                                    yield ToolCall(
+                                        id=block.id,
+                                        function=ToolCall.FunctionBody(
+                                            name=block.name, arguments=""
+                                        ),
+                                    )
                             case (
                                 "server_tool_use"
                                 | "web_search_tool_result"
@@ -469,13 +474,17 @@ class AnthropicStreamedMessage:
                         delta = event.delta
                         match delta.type:
                             case "text_delta":
-                                yield TextPart(text=delta.text)
+                                if hasattr(delta, "text"):
+                                    yield TextPart(text=delta.text)
                             case "thinking_delta":
-                                yield ThinkPart(think=delta.thinking)
+                                if hasattr(delta, "thinking"):
+                                    yield ThinkPart(think=delta.thinking)
                             case "input_json_delta":
-                                yield ToolCallPart(arguments_part=delta.partial_json)
+                                if hasattr(delta, "partial_json"):
+                                    yield ToolCallPart(arguments_part=delta.partial_json)
                             case "signature_delta":
-                                yield ThinkPart(think="", encrypted=delta.signature)
+                                if hasattr(delta, "signature"):
+                                    yield ThinkPart(think="", encrypted=delta.signature)
                             case "citations_delta":
                                 # ignore
                                 continue
@@ -544,7 +553,7 @@ def _image_url_part_to_anthropic(part: ImageURLPart) -> ImageBlockParam:
             source=Base64ImageSourceParam(
                 type="base64",
                 data=data,
-                media_type=media_type,
+                media_type=cast(Any, media_type),
             ),
         )
     else:

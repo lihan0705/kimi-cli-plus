@@ -36,11 +36,11 @@ class QuestionParam(BaseModel):
     )
     options: list[QuestionOptionParam] = Field(
         description=(
-            "2-4 meaningful, distinct options. Do NOT include an 'Other' option — "
+            "2-10 meaningful, distinct options. Do NOT include an 'Other' option — "
             "the system adds one automatically."
         ),
         min_length=2,
-        max_length=4,
+        max_length=10,
     )
     multi_select: bool = Field(
         default=False,
@@ -50,9 +50,9 @@ class QuestionParam(BaseModel):
 
 class Params(BaseModel):
     questions: list[QuestionParam] = Field(
-        description="The questions to ask the user (1-4 questions).",
+        description="The questions to ask the user (1-10 questions).",
         min_length=1,
-        max_length=4,
+        max_length=10,
     )
 
 

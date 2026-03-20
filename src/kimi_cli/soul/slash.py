@@ -276,11 +276,23 @@ async def context(soul: KimiSoul, args: str):
         params: Any = {}
         if hasattr(tool_any, "parameters"):
             params = tool_any.parameters
+        elif hasattr(tool_any, "base") and hasattr(tool_any.base, "parameters"):
+            params = tool_any.base.parameters
         elif hasattr(tool_any, "params"):
-            params = tool_any.params
+            p = tool_any.params
+            from pydantic import BaseModel
+
+            if isinstance(p, type) and issubclass(p, BaseModel):
+                params = p.model_json_schema()
+            else:
+                params = p
 
         description = getattr(tool_any, "description", "")
-        tool_size = len(str(description)) + len(json.dumps(params))
+        try:
+            params_str = json.dumps(params)
+        except Exception:
+            params_str = str(params)
+        tool_size = len(str(description)) + len(params_str)
 
         if isinstance(tool, MCPTool):
             categories["MCP tools"] += tool_size
