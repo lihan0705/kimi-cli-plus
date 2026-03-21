@@ -69,4 +69,27 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes("node_modules")) {
+            if (id.includes("mermaid")) {
+              return "vendor-mermaid";
+            }
+            if (id.includes("shiki") || id.includes("rehype") || id.includes("remark")) {
+              return "vendor-shiki";
+            }
+            if (id.includes("lucide-react")) {
+              return "vendor-lucide";
+            }
+            if (id.includes("react") || id.includes("react-dom") || id.includes("scheduler")) {
+              return "vendor-react";
+            }
+          }
+        },
+      },
+    },
+  },
 });
