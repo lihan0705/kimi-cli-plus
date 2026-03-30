@@ -20,6 +20,16 @@ from kimi_cli.utils.changelog import CHANGELOG
 from kimi_cli.utils.datetime import format_relative_time
 from kimi_cli.utils.slashcmd import SlashCommand, SlashCommandRegistry
 
+# Side-effect imports for slash command registration
+from . import (  # noqa: F401
+    debug,  # pyright: ignore[reportUnusedImport]
+    export_import,  # pyright: ignore[reportUnusedImport]
+    oauth,  # pyright: ignore[reportUnusedImport]
+    setup,  # pyright: ignore[reportUnusedImport]
+    update,  # pyright: ignore[reportUnusedImport]
+    usage,  # pyright: ignore[reportUnusedImport]
+)
+
 if TYPE_CHECKING:
     from kimi_cli.ui.shell import Shell
 
@@ -106,7 +116,7 @@ def help(app: Shell, args: str):
     commands: list[SlashCommand[Any]] = []
     skills: list[SlashCommand[Any]] = []
     for cmd in app.available_slash_commands.values():
-        if cmd.name.startswith(SKILL_COMMAND_PREFIX):
+        if cmd.name.startswith(SKILL_COMMAND_PREFIX) or cmd.name.startswith("plugin:"):
             skills.append(cmd)
         else:
             commands.append(cmd)
@@ -491,35 +501,76 @@ def web(app: Shell, args: str):
 
 @registry.command
 async def plugin(app: Shell, args: str):
-    """Show installed plugins and tools"""
-    from rich.console import Group, RenderableType
-    from rich.text import Text
-    from kimi_cli.utils.rich.columns import BulletColumns
-
+    """Manage plugins: show|list|add|remove|help"""
     soul = ensure_kimi_soul(app)
     if soul is None:
         return
-    
-    plugins = soul.runtime.plugins
+
+    args = args.strip()
+    if not args:
+        # Default: show installed plugins
+        await _show_plugins(app, soul)
+        return
+
+    # Parse subcommands
+    parts = args.split()
+    subcommand = parts[0].lower()
+
+    if subcommand in ("list", "show"):
+        await _show_plugins(app, soul)
+    elif subcommand == "add":
+        console.print("[yellow]Plugin add functionality not implemented yet[/yellow]")
+    elif subcommand == "remove":
+        if len(parts) < 2:
+            console.print("[red]Usage: /plugin remove <plugin_name>[/red]")
+            return
+        plugin_name = parts[1]
+        msg = f"Plugin remove functionality not implemented yet: {plugin_name}"
+        console.print(f"[yellow]{msg}[/yellow]")
+    elif subcommand == "help":
+        console.print("[bold]Plugin Commands:[/bold]")
+        console.print("  /plugin              - Show installed plugins")
+        console.print("  /plugin list          - List installed plugins")
+        console.print("  /plugin add           - Add a plugin")
+        console.print("  /plugin remove <name> - Remove a plugin")
+        console.print("  /plugin help          - Show this help")
+    else:
+        console.print(f"[red]Unknown plugin subcommand: {subcommand}. Use /plugin help[/red]")
+
+
+async def _show_plugins(app: Shell, soul: KimiSoul) -> None:
+    """Show installed plugins and their commands"""
+    from rich.console import Group, RenderableType
+    from rich.text import Text
+
+    from kimi_cli.plugin import Plugin
+    from kimi_cli.utils.rich.columns import BulletColumns
+
+    plugins: list[Plugin] = soul.runtime.plugins
     if not plugins:
         console.print("[yellow]No plugins installed.[/yellow]")
         return
 
     console.print(f"[bold]Installed Plugins ({len(plugins)}):[/bold]")
-    
+
     for p in plugins:
         plugin_text = f"[green]{p.name}[/green]"
         lines: list[RenderableType] = [Text.from_markup(plugin_text)]
-        
-        # Skill info
-        if p.skill:
+
+        # Skills info with full command paths (ONLY plugin:plugin_name:skill_name format)
+        for skill in p.skills:
+            primary_cmd = f"/plugin:{p.name}:{skill.name}"
+
+            skill_info = f"[cyan]Skill:[/cyan] {skill.description}\n"
+            skill_info += f"  Command: [bold blue]{primary_cmd}[/bold blue]"
+
             lines.append(
                 BulletColumns(
-                    Text.from_markup(f"[cyan]Skill:[/cyan] {p.skill.description}"),
+                    Text.from_markup(skill_info),
                     bullet_style="cyan",
                 )
             )
-        
+
         # Tools info
         if p.loaded_tools:
             tools_text = ", ".join(t.name for t in p.loaded_tools)
@@ -529,7 +580,7 @@ async def plugin(app: Shell, args: str):
                     bullet_style="yellow",
                 )
             )
-            
+
         # MCP info
         if p.mcp_config_file:
             lines.append(
@@ -538,7 +589,7 @@ async def plugin(app: Shell, args: str):
                     bullet_style="blue",
                 )
             )
-            
+
         console.print(BulletColumns(Group(*lines), bullet_style="green"))
 
 
@@ -599,13 +650,3 @@ async def mcp(app: Shell, args: str):
                 )
             )
         console.print(BulletColumns(Group(*lines), bullet_style=color))
-
-
-# from . import (
-#     debug,  # noqa: F401
-#     export_import,  # noqa: F401
-#     oauth,  # noqa: F401
-#     setup,  # noqa: F401
-#     update,  # noqa: F401
-#     usage,  # noqa: F401
-# )

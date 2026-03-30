@@ -177,6 +177,7 @@ def runtime(
         labor_market=labor_market,
         environment=environment,
         skills={},
+        plugins=[],
         oauth=OAuthManager(config),
         additional_dirs=[],
     )

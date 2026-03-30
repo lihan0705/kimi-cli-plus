@@ -191,6 +191,7 @@ def _runtime_with_llm(runtime: Runtime, llm: LLM) -> Runtime:
         labor_market=runtime.labor_market,
         environment=runtime.environment,
         skills=runtime.skills,
+        plugins=runtime.plugins,
         oauth=runtime.oauth,
         additional_dirs=runtime.additional_dirs,
     )

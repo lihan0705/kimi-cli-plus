@@ -103,8 +103,8 @@ class Runtime:
         plugin_roots = await resolve_plugin_roots(session.work_dir)
         plugins = await discover_plugins(plugin_roots)
         for plugin in plugins:
-            if plugin.skill:
-                skills.append(plugin.skill)
+            for skill in plugin.skills:
+                skills.append(skill)
 
         skills_by_name = index_skills(skills)
         logger.info("Discovered {count} skill(s) (including plugins)", count=len(skills))

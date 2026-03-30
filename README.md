@@ -26,6 +26,7 @@ Kimi Code Plus enhances the developer experience through thoughtful improvements
 
 | Improvement Type | Description & Links | Update Time |
 |------------------|-------------------|-------------|
+| **🔌 Plugin System** | • **NEW**: Extend Kimi with custom Python tools, MCP servers, and Skills<br>• `kimi plugin add <path/url>`: Installation made simple<br>• Logic-First: Script-based Python tools without boilerplate<br>• Seamless integration with `/superpower:` or `/skill:` aliases | 2026-03-27 |
 | **🧭 Turn Navigation** | • **NEW**: Navigate conversation turns with intuitive UI controls<br>• Jump between different conversation stages and iterations<br>• Track and revisit previous responses effortlessly<br>• Enhanced workflow for iterative development<br>• 📸 [Turn Navigation Demo](./docs/media/turnNav.png) | 2026-03-19 |
 | **🔄 Multi-LLM Provider Management** | • `/login` now supports switching between OpenAI Legacy providers<br>• Add, manage multiple URLs and API keys<br>• Auto-load all models from different endpoints<br>• Enhanced Web UI for provider management<br>• 📸 [Provider Management](./docs/media/allURLmodel.png) • [Web Dashboard](./docs/media/simpleurlmanage.png) | 2026-03-15 |
 | **👁️ Context Observation** | • New `/context` command to inspect current conversation context<br>• Real-time monitoring of token usage and memory state<br>• Debug and optimize agent interactions | 2026-03-10 |
@@ -33,6 +34,25 @@ Kimi Code Plus enhances the developer experience through thoughtful improvements
 | **🌐 Web UI Enhancements** | • Updated interface reflects new provider management features<br>• Clean, monochrome design matching code aesthetics<br>• Responsive dashboard for endpoint configuration | 2026-03-05 |
 
 **Design Philosophy**: The Less is More
+
+---
+
+## 🔌 Plugin Power
+
+Extend Kimi with custom logic, tools, and skills. Use the `kimi plugin` command to manage your extensions.
+
+### Example: Adding Superpowers
+Install the [Superpowers plugin](https://github.com/obra/superpowers) to gain advanced planning and execution capabilities:
+
+```bash
+# Install the plugin
+kimi plugin add https://github.com/obra/superpowers
+
+# Verify installation inside Kimi
+# Send /plugin to see the new plugin and its skills
+# Use the new skill directly:
+/superpower:executing-plans
+```
 
 ---
 

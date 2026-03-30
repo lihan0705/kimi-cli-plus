@@ -66,7 +66,6 @@ if TYPE_CHECKING:
 
 
 SKILL_COMMAND_PREFIX = "skill:"
-SUPERPOWER_COMMAND_PREFIX = "superpower:"
 FLOW_COMMAND_PREFIX = "flow:"
 DEFAULT_MAX_FLOW_MOVES = 1000
 
@@ -279,15 +278,50 @@ class KimiSoul:
         commands: list[SlashCommand[Any]] = list(soul_slash_registry.list_commands())
         seen_names = {cmd.name for cmd in commands}
 
+        # Get plugin skill names to avoid duplication (plugin skills use /plugin: prefix only)
+        plugin_skill_names: set[str] = set()
+        for plugin in self._runtime.plugins:
+            for skill in plugin.skills:
+                plugin_skill_names.add(skill.name)
+
+        # Register plugin skills with hierarchical naming ONLY: /plugin:<plugin_name>:<skill_name>
+        for plugin in self._runtime.plugins:
+            for skill in plugin.skills:
+                # Register /plugin:<plugin_name>:<skill_name>
+                plugin_skill_name = f"plugin:{plugin.name}:{skill.name}"
+                if plugin_skill_name not in seen_names:
+                    commands.append(
+                        SlashCommand(
+                            name=plugin_skill_name,
+                            func=self._make_skill_runner(skill),
+                            description=skill.description or "",
+                            aliases=[],
+                        )
+                    )
+                    seen_names.add(plugin_skill_name)
+
+                # Case-insensitive version
+                plugin_skill_name_lower = f"plugin:{plugin.name.lower()}:{skill.name.lower()}"
+                if plugin_skill_name_lower not in seen_names:
+                    commands.append(
+                        SlashCommand(
+                            name=plugin_skill_name_lower,
+                            func=self._make_skill_runner(skill),
+                            description=skill.description or "",
+                            aliases=[],
+                        )
+                    )
+                    seen_names.add(plugin_skill_name_lower)
+
+        # Register regular skills (excluding plugin skills)
         for skill in self._runtime.skills.values():
-            if skill.type not in ("standard", "flow"):
+            # Skip plugin skills and non-standard/flow skills
+            if skill.name in plugin_skill_names or skill.type not in ("standard", "flow"):
                 continue
-            
-            # Register both /skill: and /superpower:
-            for prefix in (SKILL_COMMAND_PREFIX, SUPERPOWER_COMMAND_PREFIX):
-                name = f"{prefix}{skill.name}"
-                if name in seen_names:
-                    continue
+
+            # Register /skill: prefix only (no /superpower: prefix)
+            name = f"{SKILL_COMMAND_PREFIX}{skill.name}"
+            if name not in seen_names:
                 commands.append(
                     SlashCommand(
                         name=name,
@@ -301,21 +335,21 @@ class KimiSoul:
             # Case-insensitive alias
             lc_name = skill.name.lower()
             if lc_name != skill.name:
-                for prefix in (SKILL_COMMAND_PREFIX, SUPERPOWER_COMMAND_PREFIX):
-                    name = f"{prefix}{lc_name}"
-                    if name not in seen_names:
-                        commands.append(
-                            SlashCommand(
-                                name=name,
-                                func=self._make_skill_runner(skill),
-                                description=skill.description or "",
-                                aliases=[],
-                            )
+                name = f"{SKILL_COMMAND_PREFIX}{lc_name}"
+                if name not in seen_names:
+                    commands.append(
+                        SlashCommand(
+                            name=name,
+                            func=self._make_skill_runner(skill),
+                            description=skill.description or "",
+                            aliases=[],
                         )
-                        seen_names.add(name)
+                    )
+                    seen_names.add(name)
 
+        # Register flow skills (excluding plugin skills)
         for skill in self._runtime.skills.values():
-            if skill.type != "flow":
+            if skill.name in plugin_skill_names or skill.type != "flow":
                 continue
             if skill.flow is None:
                 logger.warning("Flow skill {name} has no flow; skipping", name=skill.name)
