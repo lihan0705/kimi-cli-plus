@@ -12,6 +12,7 @@ from kimi_cli.constant import VERSION
 
 from .info import cli as info_cli
 from .mcp import cli as mcp_cli
+from .plugin import cli as plugin_cli
 from .web import cli as web_cli
 
 
@@ -802,6 +803,7 @@ def web_worker(session_id: str) -> None:
 
 
 cli.add_typer(mcp_cli, name="mcp")
+cli.add_typer(plugin_cli, name="plugin")
 cli.add_typer(web_cli, name="web")
 
 

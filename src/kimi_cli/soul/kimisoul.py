@@ -66,6 +66,7 @@ if TYPE_CHECKING:
 
 
 SKILL_COMMAND_PREFIX = "skill:"
+SUPERPOWER_COMMAND_PREFIX = "superpower:"
 FLOW_COMMAND_PREFIX = "flow:"
 DEFAULT_MAX_FLOW_MOVES = 1000
 
@@ -281,22 +282,37 @@ class KimiSoul:
         for skill in self._runtime.skills.values():
             if skill.type not in ("standard", "flow"):
                 continue
-            name = f"{SKILL_COMMAND_PREFIX}{skill.name}"
-            if name in seen_names:
-                logger.warning(
-                    "Skipping skill slash command /{name}: name already registered",
-                    name=name,
+            
+            # Register both /skill: and /superpower:
+            for prefix in (SKILL_COMMAND_PREFIX, SUPERPOWER_COMMAND_PREFIX):
+                name = f"{prefix}{skill.name}"
+                if name in seen_names:
+                    continue
+                commands.append(
+                    SlashCommand(
+                        name=name,
+                        func=self._make_skill_runner(skill),
+                        description=skill.description or "",
+                        aliases=[],
+                    )
                 )
-                continue
-            commands.append(
-                SlashCommand(
-                    name=name,
-                    func=self._make_skill_runner(skill),
-                    description=skill.description or "",
-                    aliases=[],
-                )
-            )
-            seen_names.add(name)
+                seen_names.add(name)
+
+            # Case-insensitive alias
+            lc_name = skill.name.lower()
+            if lc_name != skill.name:
+                for prefix in (SKILL_COMMAND_PREFIX, SUPERPOWER_COMMAND_PREFIX):
+                    name = f"{prefix}{lc_name}"
+                    if name not in seen_names:
+                        commands.append(
+                            SlashCommand(
+                                name=name,
+                                func=self._make_skill_runner(skill),
+                                description=skill.description or "",
+                                aliases=[],
+                            )
+                        )
+                        seen_names.add(name)
 
         for skill in self._runtime.skills.values():
             if skill.type != "flow":

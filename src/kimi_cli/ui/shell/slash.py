@@ -490,6 +490,59 @@ def web(app: Shell, args: str):
 
 
 @registry.command
+async def plugin(app: Shell, args: str):
+    """Show installed plugins and tools"""
+    from rich.console import Group, RenderableType
+    from rich.text import Text
+    from kimi_cli.utils.rich.columns import BulletColumns
+
+    soul = ensure_kimi_soul(app)
+    if soul is None:
+        return
+    
+    plugins = soul.runtime.plugins
+    if not plugins:
+        console.print("[yellow]No plugins installed.[/yellow]")
+        return
+
+    console.print(f"[bold]Installed Plugins ({len(plugins)}):[/bold]")
+    
+    for p in plugins:
+        plugin_text = f"[green]{p.name}[/green]"
+        lines: list[RenderableType] = [Text.from_markup(plugin_text)]
+        
+        # Skill info
+        if p.skill:
+            lines.append(
+                BulletColumns(
+                    Text.from_markup(f"[cyan]Skill:[/cyan] {p.skill.description}"),
+                    bullet_style="cyan",
+                )
+            )
+        
+        # Tools info
+        if p.loaded_tools:
+            tools_text = ", ".join(t.name for t in p.loaded_tools)
+            lines.append(
+                BulletColumns(
+                    Text.from_markup(f"[yellow]Tools:[/yellow] {tools_text}"),
+                    bullet_style="yellow",
+                )
+            )
+            
+        # MCP info
+        if p.mcp_config_file:
+            lines.append(
+                BulletColumns(
+                    Text.from_markup("[blue]MCP Config found[/blue]"),
+                    bullet_style="blue",
+                )
+            )
+            
+        console.print(BulletColumns(Group(*lines), bullet_style="green"))
+
+
+@registry.command
 async def mcp(app: Shell, args: str):
     """Show MCP servers and tools"""
     from rich.console import Group, RenderableType

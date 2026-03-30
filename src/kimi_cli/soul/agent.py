@@ -18,6 +18,7 @@ from kimi_cli.auth.oauth import OAuthManager
 from kimi_cli.config import Config
 from kimi_cli.exception import MCPConfigError, SystemPromptTemplateError
 from kimi_cli.llm import LLM
+from kimi_cli.plugin import Plugin, discover_plugins, load_plugin_tools, resolve_plugin_roots
 from kimi_cli.session import Session
 from kimi_cli.skill import Skill, discover_skills_from_roots, index_skills, resolve_skills_roots
 from kimi_cli.soul.approval import Approval, ApprovalState
@@ -76,6 +77,7 @@ class Runtime:
     labor_market: LaborMarket
     environment: Environment
     skills: dict[str, Skill]
+    plugins: list[Plugin]
     additional_dirs: list[KaosPath]
 
     @staticmethod
@@ -96,8 +98,16 @@ class Runtime:
         # Discover and format skills
         skills_roots = await resolve_skills_roots(session.work_dir, skills_dir_override=skills_dir)
         skills = await discover_skills_from_roots(skills_roots)
+
+        # Discover and format plugins
+        plugin_roots = await resolve_plugin_roots(session.work_dir)
+        plugins = await discover_plugins(plugin_roots)
+        for plugin in plugins:
+            if plugin.skill:
+                skills.append(plugin.skill)
+
         skills_by_name = index_skills(skills)
-        logger.info("Discovered {count} skill(s)", count=len(skills))
+        logger.info("Discovered {count} skill(s) (including plugins)", count=len(skills))
         skills_formatted = "\n".join(
             (
                 f"- {skill.name}\n"
@@ -174,6 +184,7 @@ class Runtime:
             labor_market=LaborMarket(),
             environment=environment,
             skills=skills_by_name,
+            plugins=plugins,
             additional_dirs=additional_dirs,
         )
 
@@ -190,6 +201,7 @@ class Runtime:
             labor_market=LaborMarket(),  # fixed subagent has its own LaborMarket
             environment=self.environment,
             skills=self.skills,
+            plugins=self.plugins,
             # Share the same list reference so /add-dir mutations propagate to all agents
             additional_dirs=self.additional_dirs,
         )
@@ -207,6 +219,7 @@ class Runtime:
             labor_market=self.labor_market,  # dynamic subagent shares LaborMarket with main agent
             environment=self.environment,
             skills=self.skills,
+            plugins=self.plugins,
             # Share the same list reference so /add-dir mutations propagate to all agents
             additional_dirs=self.additional_dirs,
         )
@@ -301,6 +314,10 @@ async def load_agent(
         logger.debug("Excluding tools: {tools}", tools=agent_spec.exclude_tools)
         tools = [tool for tool in tools if tool not in agent_spec.exclude_tools]
     toolset.load_tools(tools, tool_deps)
+
+    # Load plugin tools
+    for plugin in runtime.plugins:
+        await load_plugin_tools(plugin, toolset, runtime)
 
     if mcp_configs:
         validated_mcp_configs: list[MCPConfig] = []
