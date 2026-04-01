@@ -135,7 +135,9 @@ No skills found.
 
 ## How to use skills
 
-Identify the skills that are likely to be useful for the tasks you are currently working on, read the `SKILL.md` file for detailed instructions, guidelines, scripts and more.
+Identify the skills that are likely to be useful for the tasks you are currently working on. You can invoke them using the `skill` tool. Use the full name including any plugin prefix (e.g. `plugin:superpower:executing-plans`) or the specialized alias if provided (e.g. `superpower:executing-plans`).
+
+Read the `SKILL.md` file (or use the `skill` tool with the name only) for detailed instructions, guidelines, scripts and more.
 
 Only read skill details when needed to conserve the context window.
 
@@ -823,7 +825,9 @@ No skills found.
 
 ## How to use skills
 
-Identify the skills that are likely to be useful for the tasks you are currently working on, read the `SKILL.md` file for detailed instructions, guidelines, scripts and more.
+Identify the skills that are likely to be useful for the tasks you are currently working on. You can invoke them using the `skill` tool. Use the full name including any plugin prefix (e.g. `plugin:superpower:executing-plans`) or the specialized alias if provided (e.g. `superpower:executing-plans`).
+
+Read the `SKILL.md` file (or use the `skill` tool with the name only) for detailed instructions, guidelines, scripts and more.
 
 Only read skill details when needed to conserve the context window.
 

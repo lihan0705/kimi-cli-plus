@@ -20,16 +20,6 @@ from kimi_cli.utils.changelog import CHANGELOG
 from kimi_cli.utils.datetime import format_relative_time
 from kimi_cli.utils.slashcmd import SlashCommand, SlashCommandRegistry
 
-# Side-effect imports for slash command registration
-from . import (  # noqa: F401
-    debug,  # pyright: ignore[reportUnusedImport]
-    export_import,  # pyright: ignore[reportUnusedImport]
-    oauth,  # pyright: ignore[reportUnusedImport]
-    setup,  # pyright: ignore[reportUnusedImport]
-    update,  # pyright: ignore[reportUnusedImport]
-    usage,  # pyright: ignore[reportUnusedImport]
-)
-
 if TYPE_CHECKING:
     from kimi_cli.ui.shell import Shell
 
@@ -51,6 +41,17 @@ def ensure_kimi_soul(app: Shell) -> KimiSoul | None:
         console.print("[red]KimiSoul required[/red]")
         return None
     return app.soul
+
+
+# Side-effect imports for slash command registration
+from . import (  # noqa: F401, E402
+    debug,  # pyright: ignore[reportUnusedImport]
+    export_import,  # pyright: ignore[reportUnusedImport]
+    oauth,  # pyright: ignore[reportUnusedImport]
+    setup,  # pyright: ignore[reportUnusedImport]
+    update,  # pyright: ignore[reportUnusedImport]
+    usage,  # pyright: ignore[reportUnusedImport]
+)
 
 
 @registry.command(aliases=["quit"])
