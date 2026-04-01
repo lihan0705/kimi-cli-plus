@@ -38,6 +38,7 @@ from kimi_cli.soul.message import check_message, system, tool_result_to_message
 from kimi_cli.soul.slash import registry as soul_slash_registry
 from kimi_cli.soul.toolset import KimiToolset
 from kimi_cli.tools.dmail import NAME as SendDMail_NAME
+from kimi_cli.tools.skill import SkillTool
 from kimi_cli.tools.utils import ToolRejectedError
 from kimi_cli.utils.logging import logger
 from kimi_cli.utils.slashcmd import SlashCommand, parse_slash_command_call
@@ -112,6 +113,10 @@ class KimiSoul:
         self._context = context
         self._loop_control = agent.runtime.config.loop_control
         self._compaction = SimpleCompaction()  # TODO: maybe configurable and composable
+
+        # Add SkillTool to enable skill-to-skill calling
+        if isinstance(agent.toolset, KimiToolset):
+            agent.toolset.add(SkillTool(self._runtime, self))
 
         for tool in agent.toolset.tools:
             if tool.name == SendDMail_NAME:
@@ -284,7 +289,8 @@ class KimiSoul:
             for skill in plugin.skills:
                 plugin_skill_names.add(skill.name)
 
-        # Register plugin skills with hierarchical naming ONLY: /plugin:<plugin_name>:<skill_name>
+        # Register plugin skills with hierarchical naming: /plugin:<plugin_name>:<skill_name>
+        # and optionally with an alias: /<alias>:<skill_name>
         for plugin in self._runtime.plugins:
             for skill in plugin.skills:
                 # Register /plugin:<plugin_name>:<skill_name>
@@ -300,6 +306,20 @@ class KimiSoul:
                     )
                     seen_names.add(plugin_skill_name)
 
+                # Register /<alias>:<skill_name> if alias exists
+                if plugin.alias:
+                    alias_skill_name = f"{plugin.alias}:{skill.name}"
+                    if alias_skill_name not in seen_names:
+                        commands.append(
+                            SlashCommand(
+                                name=alias_skill_name,
+                                func=self._make_skill_runner(skill),
+                                description=skill.description or "",
+                                aliases=[],
+                            )
+                        )
+                        seen_names.add(alias_skill_name)
+
                 # Case-insensitive version
                 plugin_skill_name_lower = f"plugin:{plugin.name.lower()}:{skill.name.lower()}"
                 if plugin_skill_name_lower not in seen_names:
@@ -312,6 +332,19 @@ class KimiSoul:
                         )
                     )
                     seen_names.add(plugin_skill_name_lower)
+
+                if plugin.alias:
+                    alias_skill_name_lower = f"{plugin.alias.lower()}:{skill.name.lower()}"
+                    if alias_skill_name_lower not in seen_names:
+                        commands.append(
+                            SlashCommand(
+                                name=alias_skill_name_lower,
+                                func=self._make_skill_runner(skill),
+                                description=skill.description or "",
+                                aliases=[],
+                            )
+                        )
+                        seen_names.add(alias_skill_name_lower)
 
         # Register regular skills (excluding plugin skills)
         for skill in self._runtime.skills.values():

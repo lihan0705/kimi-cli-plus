@@ -30,6 +30,9 @@ class Plugin:
     mcp_config_file: KaosPath | None = None
     tools_py: KaosPath | None = None
     loaded_tools: list[Any] = field(default_factory=list[Any])
+    manifest: dict[str, Any] = field(default_factory=dict[str, Any])
+    alias: str | None = None
+    description: str | None = None
 
     @property
     def skill(self) -> Skill | None:
@@ -87,6 +90,23 @@ async def _load_plugin_metadata(plugin_dir: KaosPath) -> Plugin | None:
     skills: list[Skill] = []
     mcp_config_file = None
     tools_py = None
+    manifest: dict[str, Any] = {}
+    alias = None
+    description = None
+
+    # 1. Load manifest if it exists
+    for manifest_name in ("manifest.json", "plugin.json"):
+        manifest_file = plugin_dir / manifest_name
+        if await manifest_file.is_file():
+            try:
+                content = await manifest_file.read_text(encoding="utf-8")
+                manifest = json.loads(content)
+                name = manifest.get("name", name)
+                alias = manifest.get("alias")
+                description = manifest.get("description")
+                break
+            except Exception as e:
+                logger.warning("Failed to parse {} for plugin {}: {}", manifest_name, name, e)
 
     # Check for SKILL.md at plugin root
     skill_md = plugin_dir / "SKILL.md"
@@ -128,7 +148,14 @@ async def _load_plugin_metadata(plugin_dir: KaosPath) -> Plugin | None:
         tools_py = tools_file
 
     return Plugin(
-        name=name, dir=plugin_dir, skills=skills, mcp_config_file=mcp_config_file, tools_py=tools_py
+        name=name,
+        dir=plugin_dir,
+        skills=skills,
+        mcp_config_file=mcp_config_file,
+        tools_py=tools_py,
+        manifest=manifest,
+        alias=alias,
+        description=description,
     )
 
 

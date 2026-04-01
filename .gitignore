@@ -46,3 +46,6 @@ static/
 .memo/
 .entire
 .claude*:Zone.Identifier
+
+# Temporary folder
+tmp/
