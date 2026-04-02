@@ -38,6 +38,7 @@ from kimi_cli.wire.jsonrpc import (
     JSONRPCErrorObject,
     JSONRPCErrorResponse,
     JSONRPCEventMessage,
+    JSONRPCInitializeMessage,
     JSONRPCInMessage,
     JSONRPCInMessageAdapter,
     JSONRPCOutMessage,
@@ -98,6 +99,7 @@ class SessionProcess:
         self._lock = asyncio.Lock()
         self._ws_lock = asyncio.Lock()
         self._sent_files: set[str] = set()
+        self._last_initialize_message: str | None = None
 
     @property
     def is_alive(self) -> bool:
@@ -211,6 +213,19 @@ class SessionProcess:
             )
 
             self._read_task = asyncio.create_task(self._read_loop())
+
+            # Replay the last initialization message to the new worker process.
+            # This ensures that client capabilities (like interactive questions)
+            # are correctly registered in the new WireServer after a restart.
+            if self._last_initialize_message is not None:
+                assert self._process is not None
+                assert self._process.stdin is not None
+                self._process.stdin.write((self._last_initialize_message + "\n").encode("utf-8"))
+                await self._process.stdin.drain()
+                logger.debug(
+                    f"Replayed initialize message to new worker for session {self.session_id}"
+                )
+
             if restart_started_at is not None:
                 elapsed_ms = int((time.perf_counter() - restart_started_at) * 1000)
                 detail = f"restart_ms={elapsed_ms}"
@@ -630,7 +645,9 @@ class SessionProcess:
         # Handle in message
         try:
             in_message = JSONRPCInMessageAdapter.validate_json(message)
-            if isinstance(in_message, JSONRPCPromptMessage):
+            if isinstance(in_message, JSONRPCInitializeMessage):
+                self._last_initialize_message = message
+            elif isinstance(in_message, JSONRPCPromptMessage):
                 was_busy = self.is_busy
                 self._in_flight_prompt_ids.add(in_message.id)
                 if not was_busy:
