@@ -122,6 +122,9 @@ class WriteFile(CallableTool2[Params]):
                 action,
                 f"Write file `{p}`",
                 display=diff_blocks,
+                security_check=lambda: self._approval._security_checker.evaluate(
+                    file_path=params.path, is_write=True
+                ),
             ):
                 return ToolRejectedError()
 

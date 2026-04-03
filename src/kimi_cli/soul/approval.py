@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
+from kimi_cli.soul.security import SecurityChecker, SecurityLevel, SecurityResult
 from kimi_cli.soul.toolset import get_current_tool_call_or_none
 from kimi_cli.utils.aioqueue import Queue
 from kimi_cli.utils.logging import logger
@@ -20,6 +21,7 @@ class Request:
     action: str
     description: str
     display: list[DisplayBlock]
+    security_result: SecurityResult | None = None
 
 
 type Response = Literal["approve", "approve_for_session", "reject"]
@@ -47,6 +49,7 @@ class Approval:
         self._request_queue = Queue[Request]()
         self._requests: dict[str, tuple[Request, asyncio.Future[bool]]] = {}
         self._state = state or ApprovalState(yolo=yolo)
+        self._security_checker = SecurityChecker()
 
     def share(self) -> Approval:
         """Create a new approval queue that shares state (yolo + auto-approve)."""
@@ -65,6 +68,8 @@ class Approval:
         action: str,
         description: str,
         display: list[DisplayBlock] | None = None,
+        *,
+        security_check: Callable[[], SecurityResult] | None = None,
     ) -> bool:
         """
         Request approval for the given action. Intended to be called by tools.
@@ -73,7 +78,9 @@ class Approval:
             sender (str): The name of the sender.
             action (str): The action to request approval for.
                 This is used to identify the action for auto-approval.
-            description (str): The description of the action. This is used to display to the user.
+            description (str): The description of the action.
+            display (list[DisplayBlock] | None): Optional display blocks for the request.
+            security_check (Callable[[], SecurityResult] | None): Optional security check.
 
         Returns:
             bool: True if the action is approved, False otherwise.
@@ -85,6 +92,16 @@ class Approval:
         if tool_call is None:
             raise RuntimeError("Approval must be requested from a tool call.")
 
+        # Perform security check if provided
+        security_result = security_check() if security_check else None
+        if security_result and security_result.level == SecurityLevel.BLOCKED:
+            logger.warning(
+                "Action {action} BLOCKED by security checker: {reason}",
+                action=action,
+                reason=security_result.reason,
+            )
+            return False
+
         logger.debug(
             "{tool_name} ({tool_call_id}) requesting approval: {action} {description}",
             tool_name=tool_call.function.name,
@@ -92,11 +109,16 @@ class Approval:
             action=action,
             description=description,
         )
-        if self._state.yolo:
-            return True
 
-        if action in self._state.auto_approve_actions:
-            return True
+        # Skip YOLO/auto-approval if security check requires forced confirmation
+        force_confirm = security_result and security_result.level == SecurityLevel.FORCE_CONFIRM
+
+        if not force_confirm:
+            if self._state.yolo:
+                return True
+
+            if action in self._state.auto_approve_actions:
+                return True
 
         request = Request(
             id=str(uuid.uuid4()),
@@ -105,6 +127,7 @@ class Approval:
             action=action,
             description=description,
             display=display or [],
+            security_result=security_result,
         )
         approved_future = asyncio.Future[bool]()
         self._request_queue.put_nowait(request)
@@ -117,7 +140,14 @@ class Approval:
         """
         while True:
             request = await self._request_queue.get()
-            if request.action in self._state.auto_approve_actions:
+
+            # Skip auto-approval for requests that require forced confirmation
+            force_confirm = (
+                request.security_result
+                and request.security_result.level == SecurityLevel.FORCE_CONFIRM
+            )
+
+            if not force_confirm and request.action in self._state.auto_approve_actions:
                 # the action is not auto-approved when the request was created, but now it should be
                 logger.debug(
                     "Auto-approving previously requested action: {action}", action=request.action

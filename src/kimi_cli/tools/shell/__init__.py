@@ -63,6 +63,9 @@ class Shell(CallableTool2[Params]):
                     command=params.command,
                 )
             ],
+            security_check=lambda: self._approval._security_checker.evaluate(
+                command=params.command
+            ),
         ):
             return ToolRejectedError()
 

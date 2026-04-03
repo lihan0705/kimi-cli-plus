@@ -17,6 +17,7 @@ from kimi_cli.acp.convert import (
 from kimi_cli.acp.types import ACPContentBlock
 from kimi_cli.app import KimiCLI
 from kimi_cli.soul import LLMNotSet, LLMNotSupported, MaxStepsReached, RunCancelled
+from kimi_cli.soul.security import SecurityLevel
 from kimi_cli.tools import extract_key_argument
 from kimi_cli.utils.logging import logger
 from kimi_cli.wire.types import (
@@ -366,6 +367,28 @@ class ACPSession:
                 | acp.schema.FileEditToolCallContent
                 | acp.schema.TerminalToolCallContent
             ] = []
+
+            # Add security warning if present
+            if (
+                request.security_result
+                and request.security_result.level == SecurityLevel.FORCE_CONFIRM
+            ):
+                warning_text = (
+                    "⚠️  **SECURITY WARNING** ⚠️\n\n"
+                    "AI is trying to perform a sensitive operation:\n"
+                    f"- **Reason**: {request.security_result.reason}\n\n"
+                    "This operation requires manual confirmation even in YOLO mode."
+                )
+                content.append(
+                    acp.schema.ContentToolCallContent(
+                        type="content",
+                        content=acp.schema.TextContentBlock(
+                            type="text",
+                            text=warning_text,
+                        ),
+                    )
+                )
+
             if request.display:
                 for block in request.display:
                     diff_content = display_block_to_acp_content(block)

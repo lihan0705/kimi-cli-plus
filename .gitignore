@@ -47,5 +47,5 @@ static/
 .entire
 .claude*:Zone.Identifier
 
-# Temporary folder
+# Temporary files
 tmp/
