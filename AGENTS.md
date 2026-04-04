@@ -64,6 +64,7 @@ shell UI, ACP server mode for IDE integrations, and MCP tool loading.
   commands live in `src/kimi_cli/ui/shell/slash.py`. The shell UI exposes both and dispatches
   based on the registry. Standard skills register `/skill:<skill-name>` and load `SKILL.md`
   as a user prompt; flow skills register `/flow:<skill-name>` and execute the embedded flow.
+  Use `/reload-skills` to reload all skills and plugins from their roots without restarting.
 
 # Kimi CLI Soul & Philosophy
 

@@ -224,6 +224,43 @@ class Runtime:
             additional_dirs=self.additional_dirs,
         )
 
+    async def refresh_skills(self, skills_dir: KaosPath | None = None) -> None:
+        """Refresh skills by re-discovering them from roots."""
+        # Discover and format skills
+        skills_roots = await resolve_skills_roots(
+            self.session.work_dir, skills_dir_override=skills_dir
+        )
+        skills = await discover_skills_from_roots(skills_roots)
+
+        # Discover and format plugins
+        plugin_roots = await resolve_plugin_roots(self.session.work_dir)
+        plugins = await discover_plugins(plugin_roots)
+        for plugin in plugins:
+            for skill in plugin.skills:
+                skills.append(skill)
+
+        skills_by_name = index_skills(skills)
+        logger.info("Re-discovered {count} skill(s) (including plugins)", count=len(skills))
+        skills_formatted = "\n".join(
+            (
+                f"- {skill.name}\n"
+                f"  - Path: {skill.skill_md_file}\n"
+                f"  - Description: {skill.description}"
+            )
+            for skill in skills
+        )
+
+        self.skills = skills_by_name
+        self.plugins = plugins
+        self.builtin_args = BuiltinSystemPromptArgs(
+            KIMI_NOW=self.builtin_args.KIMI_NOW,
+            KIMI_WORK_DIR=self.builtin_args.KIMI_WORK_DIR,
+            KIMI_WORK_DIR_LS=self.builtin_args.KIMI_WORK_DIR_LS,
+            KIMI_AGENTS_MD=self.builtin_args.KIMI_AGENTS_MD,
+            KIMI_SKILLS=skills_formatted or "No skills found.",
+            KIMI_ADDITIONAL_DIRS_INFO=self.builtin_args.KIMI_ADDITIONAL_DIRS_INFO,
+        )
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Agent:

@@ -176,6 +176,11 @@ class KimiSoul:
     def context(self) -> Context:
         return self._context
 
+    def refresh_slash_commands(self) -> None:
+        """Rebuild and re-index slash commands."""
+        self._slash_commands = self._build_slash_commands()
+        self._slash_command_map = self._index_slash_commands(self._slash_commands)
+
     @property
     def _context_usage(self) -> float:
         if self._runtime.llm is not None and self._runtime.llm.max_context_size > 0:
@@ -736,6 +741,19 @@ class KimiSoul:
             except (APIConnectionError, APITimeoutError) as second_error:
                 second_error._kimi_recovery_exhausted = True  # type: ignore[attr-defined]
                 raise
+
+    @staticmethod
+    def _is_retryable_error(exception: BaseException) -> bool:
+        if isinstance(exception, (APIConnectionError, APITimeoutError)):
+            return not bool(getattr(exception, "_kimi_recovery_exhausted", False))
+        if isinstance(exception, APIEmptyResponseError):
+            return True
+        return isinstance(exception, APIStatusError) and exception.status_code in (
+            429,  # Too Many Requests
+            500,  # Internal Server Error
+            502,  # Bad Gateway
+            503,  # Service Unavailable
+        )
 
     @staticmethod
     def _retry_log(name: str, retry_state: RetryCallState):

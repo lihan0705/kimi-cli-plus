@@ -99,6 +99,15 @@ async def yolo(soul: KimiSoul, args: str):
         wire_send(TextPart(text="You only live once! All actions will be auto-approved."))
 
 
+@registry.command(name="reload-skills")
+async def reload_skills(soul: KimiSoul, args: str):
+    """Reload all skills and plugins from their roots."""
+    logger.info("Running `/reload-skills`")
+    await soul.runtime.refresh_skills()
+    soul.refresh_slash_commands()
+    wire_send(TextPart(text=f"Reloaded {len(soul.runtime.skills)} skill(s)."))
+
+
 @registry.command(name="add-dir")
 async def add_dir(soul: KimiSoul, args: str):
     """Add a directory to the workspace. Usage: /add-dir <path>. Run without args to list added dirs"""  # noqa: E501
