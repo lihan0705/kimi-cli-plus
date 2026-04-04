@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -52,17 +51,11 @@ class Approval:
         *,
         state: ApprovalState | None = None,
         security_checker: SecurityChecker | None = None,
-        test_mode: bool | None = None,
     ):
         self._request_queue = Queue[Request]()
         self._requests: dict[str, tuple[Request, asyncio.Future[bool]]] = {}
         self._state = state or ApprovalState(yolo=yolo)
         self._security_checker = security_checker or SecurityChecker()
-        self._test_mode = (
-            test_mode
-            if test_mode is not None
-            else (os.environ.get("PYTEST_CURRENT_TEST") is not None)
-        )
 
     @property
     def security_checker(self) -> SecurityChecker:
@@ -71,7 +64,7 @@ class Approval:
 
     def share(self) -> Approval:
         """Create a new approval queue that shares state (yolo + auto-approve)."""
-        return Approval(state=self._state, test_mode=self._test_mode)
+        return Approval(state=self._state)
 
     def set_yolo(self, yolo: bool) -> None:
         self._state.yolo = yolo
@@ -150,13 +143,6 @@ class Approval:
         approved_future = asyncio.Future[bool]()
         self._request_queue.put_nowait(request)
         self._requests[request.id] = (request, approved_future)
-
-        # In test mode, we automatically approve to prevent hanging,
-        # but only AFTER putting the request in the queue so tests can still fetch it.
-        if self._test_mode:
-            logger.debug("Auto-approving in test mode: {action}", action=action)
-            return True
-
         return await approved_future
 
     async def fetch_request(self) -> Request:
