@@ -200,7 +200,7 @@ class TestApprovalStateCallback:
             changes.append(True)
 
         state = ApprovalState(on_change=on_change)
-        approval = Approval(state=state)
+        approval = Approval(state=state, test_mode=False)
 
         approval.set_yolo(True)
         assert len(changes) == 1
@@ -224,7 +224,7 @@ class TestApprovalStateCallback:
             changes.append(True)
 
         state = ApprovalState(on_change=on_change)
-        approval = Approval(state=state)
+        approval = Approval(state=state, test_mode=False)
 
         # Set up tool call context
         token = current_tool_call.set(
@@ -250,6 +250,6 @@ class TestApprovalStateCallback:
         from kimi_cli.soul.approval import Approval, ApprovalState
 
         state = ApprovalState()  # no on_change
-        approval = Approval(state=state)
+        approval = Approval(state=state, test_mode=False)
         approval.set_yolo(True)  # should not raise
         assert state.yolo is True
