@@ -51,6 +51,10 @@ shell UI, ACP server mode for IDE integrations, and MCP tool loading.
   (`src/kimi_cli/soul/compaction.py`) when needed.
 - **Approvals**: `src/kimi_cli/soul/approval.py` mediates user approvals for tool actions; the
   soul forwards approval requests over `Wire` for UI handling.
+- **Security & Safety**: `src/kimi_cli/soul/security.py` implements a blacklist for dangerous
+  commands (e.g., `rm -rf /`, `mkfs`) and sensitive system paths (e.g., `~/.ssh`, `/etc/passwd`).
+  The system uses a `FORCE_CONFIRM` mechanism to ensure manual user approval for high-risk
+  actions, bypassing YOLO mode.
 - **UI/Wire**: `src/kimi_cli/soul/run_soul` connects `KimiSoul` to a `Wire`
   (`src/kimi_cli/wire/`) so UI loops can stream events. UIs live in `src/kimi_cli/ui/`
   (shell/print/acp/wire).

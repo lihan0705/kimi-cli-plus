@@ -1,24 +1,11 @@
 from __future__ import annotations
 
-import enum
 import fnmatch
 import os
-from dataclasses import dataclass
 from pathlib import Path
 
 from kimi_cli.acp.kaos import KaosPath
-
-
-class SecurityLevel(enum.Enum):
-    PASS = "pass"
-    FORCE_CONFIRM = "force_confirm"
-    BLOCKED = "blocked"
-
-
-@dataclass(frozen=True, slots=True)
-class SecurityResult:
-    level: SecurityLevel
-    reason: str | None = None
+from kimi_cli.wire.types import SecurityLevel, SecurityResult
 
 
 class SecurityChecker:

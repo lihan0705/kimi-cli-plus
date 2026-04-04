@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import enum
+from dataclasses import dataclass
 from typing import Any, Literal, TypeGuard, cast
 
 from kosong.chat_provider import TokenUsage
@@ -31,6 +33,18 @@ from kimi_cli.tools.display import (
     TodoDisplayItem,
 )
 from kimi_cli.utils.typing import flatten_union
+
+
+class SecurityLevel(enum.Enum):
+    PASS = "pass"
+    FORCE_CONFIRM = "force_confirm"
+    BLOCKED = "blocked"
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityResult:
+    level: SecurityLevel
+    reason: str | None = None
 
 
 class TurnBegin(BaseModel):
@@ -180,6 +194,7 @@ class ApprovalRequest(BaseModel):
     description: str
     display: list[DisplayBlock] = Field(default_factory=list[DisplayBlock])
     """Defaults to an empty list for backwards-compatible wire.jsonl loading."""
+    security_result: SecurityResult | None = None
 
     # Note that the above fields are just a copy of `kimi_cli.soul.approval.Request`, but
     # we cannot directly use that class here because we want to avoid dependency from Wire
@@ -485,4 +500,7 @@ __all__ = [
     "TodoDisplayBlock",
     "TodoDisplayItem",
     "ShellDisplayBlock",
+    # Security types
+    "SecurityLevel",
+    "SecurityResult",
 ]

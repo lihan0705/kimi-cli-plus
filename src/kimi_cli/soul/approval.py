@@ -51,6 +51,11 @@ class Approval:
         self._state = state or ApprovalState(yolo=yolo)
         self._security_checker = SecurityChecker()
 
+    @property
+    def security_checker(self) -> SecurityChecker:
+        """The security checker used by the approval system."""
+        return self._security_checker
+
     def share(self) -> Approval:
         """Create a new approval queue that shares state (yolo + auto-approve)."""
         return Approval(state=self._state)
