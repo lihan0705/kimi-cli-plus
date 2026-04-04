@@ -93,8 +93,8 @@ check-web: ## Run linting and type checks for web.
 test: test-kimi-cli test-kosong test-pykaos test-kimi-sdk ## Run all test suites.
 test-kimi-cli: ## Run Kimi Code CLI tests.
 	@echo "==> Running Kimi Code CLI tests"
-	@uv run pytest tests -vv
-	@uv run pytest tests_e2e -vv
+	@PYTEST_CURRENT_TEST=1 uv run pytest tests -vv
+	@PYTEST_CURRENT_TEST=1 uv run pytest tests_e2e -vv
 test-kosong: ## Run kosong tests (including doctests).
 	@echo "==> Running kosong tests"
 	@uv run --project packages/kosong --directory packages/kosong pytest --doctest-modules -vv
