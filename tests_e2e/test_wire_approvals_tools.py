@@ -127,8 +127,7 @@ def test_shell_approval_approve(tmp_path) -> None:
                         "id": "<uuid>",
                         "tool_call_id": "tc-1",
                         "sender": "Shell",
-                        "action": "run command",
-                        "description": "Run command `echo ok`",
+                        "action": "run command", "security_result": None, "description": "Run command `echo ok`",
                         "display": [{"type": "shell", "language": "bash", "command": "echo ok"}],
                     },
                 },
@@ -249,8 +248,7 @@ def test_shell_approval_reject(tmp_path) -> None:
                         "id": "<uuid>",
                         "tool_call_id": "tc-1",
                         "sender": "Shell",
-                        "action": "run command",
-                        "description": "Run command `echo ok`",
+                        "action": "run command", "security_result": None, "description": "Run command `echo ok`",
                         "display": [{"type": "shell", "language": "bash", "command": "echo ok"}],
                     },
                 },
@@ -373,8 +371,7 @@ def test_approve_for_session(tmp_path) -> None:
                         "id": "<uuid>",
                         "tool_call_id": "tc-1",
                         "sender": "Shell",
-                        "action": "run command",
-                        "description": "Run command `echo first`",
+                        "action": "run command", "security_result": None, "description": "Run command `echo first`",
                         "display": [{"type": "shell", "language": "bash", "command": "echo first"}],
                     },
                 },
@@ -631,8 +628,7 @@ def test_display_block_shell(tmp_path) -> None:
                 "id": "<uuid>",
                 "tool_call_id": "tc-1",
                 "sender": "Shell",
-                "action": "run command",
-                "description": "Run command `echo ok`",
+                "action": "run command", "security_result": None, "description": "Run command `echo ok`",
                 "display": [{"type": "shell", "language": "bash", "command": "echo ok"}],
             }
         )
@@ -685,8 +681,7 @@ def test_display_block_diff_write_file(tmp_path) -> None:
                 "id": "<uuid>",
                 "tool_call_id": "tc-1",
                 "sender": "WriteFile",
-                "action": "edit file",
-                "description": "Write file `<work_dir>/file.txt`",
+                "action": "edit file", "security_result": None, "description": "Write file `<work_dir>/file.txt`",
                 "display": [
                     {
                         "type": "diff",
@@ -750,8 +745,7 @@ def test_display_block_diff_str_replace(tmp_path) -> None:
                 "id": "<uuid>",
                 "tool_call_id": "tc-1",
                 "sender": "StrReplaceFile",
-                "action": "edit file",
-                "description": "Edit file `<work_dir>/file.txt`",
+                "action": "edit file", "security_result": None, "description": "Edit file `<work_dir>/file.txt`",
                 "display": [
                     {
                         "type": "diff",

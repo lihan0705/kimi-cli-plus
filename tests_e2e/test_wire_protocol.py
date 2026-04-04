@@ -61,6 +61,11 @@ def test_initialize_handshake(tmp_path) -> None:
                             "aliases": [],
                         },
                         {
+                            "name": "reload-skills",
+                            "description": "Reload all skills and plugins from their roots.",
+                            "aliases": [],
+                        },
+                        {
                             "name": "add-dir",
                             "description": "Add a directory to the workspace. Usage: /add-dir <path>. Run without args to list added dirs",
                             "aliases": [],
@@ -205,6 +210,11 @@ def test_initialize_external_tool_conflict(tmp_path) -> None:
                         {
                             "name": "yolo",
                             "description": "Toggle YOLO mode (auto-approve all actions)",
+                            "aliases": [],
+                        },
+                        {
+                            "name": "reload-skills",
+                            "description": "Reload all skills and plugins from their roots.",
                             "aliases": [],
                         },
                         {
