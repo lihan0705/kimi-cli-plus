@@ -743,19 +743,6 @@ class KimiSoul:
                 raise
 
     @staticmethod
-    def _is_retryable_error(exception: BaseException) -> bool:
-        if isinstance(exception, (APIConnectionError, APITimeoutError)):
-            return not bool(getattr(exception, "_kimi_recovery_exhausted", False))
-        if isinstance(exception, APIEmptyResponseError):
-            return True
-        return isinstance(exception, APIStatusError) and exception.status_code in (
-            429,  # Too Many Requests
-            500,  # Internal Server Error
-            502,  # Bad Gateway
-            503,  # Service Unavailable
-        )
-
-    @staticmethod
     def _retry_log(name: str, retry_state: RetryCallState):
         logger.info(
             "Retrying {name} for the {n} time. Waiting {sleep} seconds.",
