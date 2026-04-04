@@ -45,11 +45,17 @@ class ApprovalState:
 
 
 class Approval:
-    def __init__(self, yolo: bool = False, *, state: ApprovalState | None = None):
+    def __init__(
+        self,
+        yolo: bool = False,
+        *,
+        state: ApprovalState | None = None,
+        security_checker: SecurityChecker | None = None,
+    ):
         self._request_queue = Queue[Request]()
         self._requests: dict[str, tuple[Request, asyncio.Future[bool]]] = {}
         self._state = state or ApprovalState(yolo=yolo)
-        self._security_checker = SecurityChecker()
+        self._security_checker = security_checker or SecurityChecker()
 
     @property
     def security_checker(self) -> SecurityChecker:
