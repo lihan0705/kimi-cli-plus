@@ -26,6 +26,7 @@ Kimi Code Plus enhances the developer experience through thoughtful improvements
 
 | Improvement Type | Description & Links | Update Time |
 |------------------|-------------------|-------------|
+| **🛡️ Security Blacklist** | • **NEW**: Protect your system from disastrous operations and data leaks<br>• **Soft Sandbox**: Automatic detection of high-risk commands (e.g. `rm -rf /`) and sensitive paths (e.g. `~/.ssh`) <br>• **FORCE_CONFIRM**: Critical actions bypass YOLO mode to ensure manual human approval | 2026-03-30 |
 | **🔌 Plugin System** | • **NEW**: Extend Kimi with custom Python tools, MCP servers, and Skills<br>• `kimi plugin add <path/url>`: Installation made simple<br>• Logic-First: Script-based Python tools without boilerplate<br>• Seamless integration with `/superpower:` or `/skill:` aliases | 2026-03-27 |
 | **🧭 Turn Navigation** | • **NEW**: Navigate conversation turns with intuitive UI controls<br>• Jump between different conversation stages and iterations<br>• Track and revisit previous responses effortlessly<br>• Enhanced workflow for iterative development<br>• 📸 [Turn Navigation Demo](./docs/media/turnNav.png) | 2026-03-19 |
 | **🔄 Multi-LLM Provider Management** | • `/login` now supports switching between OpenAI Legacy providers<br>• Add, manage multiple URLs and API keys<br>• Auto-load all models from different endpoints<br>• Enhanced Web UI for provider management<br>• 📸 [Provider Management](./docs/media/allURLmodel.png) • [Web Dashboard](./docs/media/simpleurlmanage.png) | 2026-03-15 |
