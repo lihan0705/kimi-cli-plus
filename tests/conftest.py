@@ -26,7 +26,6 @@ from kimi_cli.session_state import SessionState
 from kimi_cli.soul.agent import Agent, BuiltinSystemPromptArgs, LaborMarket, Runtime
 from kimi_cli.soul.approval import Approval
 from kimi_cli.soul.denwarenji import DenwaRenji
-from kimi_cli.soul.security import SecurityChecker
 from kimi_cli.soul.toolset import KimiToolset
 from kimi_cli.tools.dmail import SendDMail
 from kimi_cli.tools.file.glob import Glob
@@ -126,10 +125,7 @@ def session(temp_work_dir: KaosPath, temp_share_dir: Path) -> Session:
 @pytest.fixture
 def approval() -> Approval:
     """Create a Approval instance."""
-    # Use a SecurityChecker that considers everything safe for tests
-    # Setting project_root to "/" makes all absolute paths safe
-    checker = SecurityChecker(project_root=Path("/"))
-    return Approval(yolo=True, security_checker=checker)
+    return Approval(yolo=True)
 
 
 @pytest.fixture
