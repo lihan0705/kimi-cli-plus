@@ -187,6 +187,7 @@ sequenceDiagram
 
 - Python >=3.12 (ty config uses 3.14); line length 100.
 - Ruff handles lint + format (rules: E, F, UP, B, SIM, I); pyright + ty for type checks.
+- **Local CI check**: ALWAYS run `make check-kimi-cli` (or `make check` for the whole project) locally and ensure it passes before pushing any changes. This is a hard requirement to avoid breaking the CI pipeline.
 - Tests use pytest + pytest-asyncio; files are `tests/test_*.py`.
 - CLI entry points: `kimi` / `kimi-cli` -> `src/kimi_cli/cli.py`.
 - User config: `~/.kimi/config.toml`; logs, sessions, and MCP config live in `~/.kimi/`.

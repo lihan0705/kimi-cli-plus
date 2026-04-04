@@ -225,7 +225,9 @@ async def test_wire_message_serde():
                 "sender": "bash",
                 "action": "Execute dangerous command",
                 "description": "This command will delete files",
-                "display": [], "security_result": None},
+                "display": [],
+                "security_result": None,
+            },
         }
     )
     _test_serde(msg)
