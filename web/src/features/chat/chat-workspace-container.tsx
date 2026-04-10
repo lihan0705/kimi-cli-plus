@@ -118,6 +118,8 @@ export function ChatWorkspaceContainer({
     respondToApproval,
     respondToQuestion,
     cancel: cancelStream,
+    deleteTurn,
+    editTurn,
     contextUsage,
     tokenUsage,
     currentStep,
@@ -386,6 +388,8 @@ export function ChatWorkspaceContainer({
       onRenameSession={onRenameSession}
       slashCommands={slashCommands}
       onForkSession={onForkSession ? handleForkSession : undefined}
+      onDeleteTurn={deleteTurn}
+      onEditTurn={editTurn}
     />
   );
 }

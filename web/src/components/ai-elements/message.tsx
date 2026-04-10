@@ -36,6 +36,8 @@ import {
   CopyIcon,
   GitBranchIcon,
   PaperclipIcon,
+  PencilIcon,
+  TrashIcon,
   VideoIcon,
   XIcon,
 } from "lucide-react";
@@ -215,6 +217,67 @@ export const MessageForkButton = ({ onFork }: MessageForkButtonProps) => {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={onFork}>Fork</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
+
+export type MessageEditButtonProps = {
+  onEdit: () => void;
+};
+
+export const MessageEditButton = ({ onEdit }: MessageEditButtonProps) => {
+  return (
+    <MessageAction tooltip="Edit" onClick={onEdit}>
+      <PencilIcon className="size-3" />
+    </MessageAction>
+  );
+};
+
+export type MessageDeleteButtonProps = {
+  onDelete: () => void;
+};
+
+export const MessageDeleteButton = ({ onDelete }: MessageDeleteButtonProps) => {
+  return (
+    <AlertDialog>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+                className="size-6 text-muted-foreground hover:text-destructive"
+              >
+                <TrashIcon className="size-3" />
+                <span className="sr-only">Delete message</span>
+              </Button>
+            </AlertDialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent className="px-1.5 py-0.5">
+            <p className="text-[12px]">Delete from this point</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Messages</AlertDialogTitle>
+          <AlertDialogDescription>
+            This message and all subsequent messages in this session will be
+            permanently deleted. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onDelete}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -6,6 +6,8 @@ import {
   MessageAttachments,
   MessageContent,
   MessageCopyButton,
+  MessageDeleteButton,
+  MessageEditButton,
   MessageForkButton,
   UserMessageContent,
 } from "@ai-elements";
@@ -21,10 +23,13 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
   type ComponentPropsWithoutRef,
 } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 export type VirtualizedMessageListProps = {
   messages: LiveMessage[];
@@ -39,6 +44,10 @@ export type VirtualizedMessageListProps = {
   onAtBottomChange?: (atBottom: boolean) => void;
   /** Callback to fork session from before a specific turn */
   onForkSession?: (turnIndex: number) => void;
+  /** Callback to delete turn and subsequent turns */
+  onDeleteTurn?: (turnIndex: number) => void;
+  /** Callback to edit turn and re-submit */
+  onEditTurn?: (turnIndex: number, newContent: string) => void;
 };
 
 export type VirtualizedMessageListHandle = {
@@ -156,11 +165,35 @@ function VirtualizedMessageListComponent(
     highlightedMessageIndex = -1,
     onAtBottomChange,
     onForkSession,
-  }: VirtualizedMessageListProps,
+    onDeleteTurn,
+    onEditTurn,
+    }: VirtualizedMessageListProps,
+
   ref: React.Ref<VirtualizedMessageListHandle>,
 ) {
   const virtuosoRef = useRef<VirtuosoHandle | null>(null);
   const scrollerRef = useRef<HTMLElement | null>(null);
+
+  const [editingTurnIndex, setEditingTurnIndex] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
+
+  const handleStartEdit = useCallback((turnIndex: number, content: string) => {
+    setEditingTurnIndex(turnIndex);
+    setEditContent(content);
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingTurnIndex(null);
+    setEditContent("");
+  }, []);
+
+  const handleSaveEdit = useCallback(() => {
+    if (editingTurnIndex !== null && onEditTurn) {
+      onEditTurn(editingTurnIndex, editContent);
+      setEditingTurnIndex(null);
+      setEditContent("");
+    }
+  }, [editingTurnIndex, editContent, onEditTurn]);
 
   // Filtered messages list (excluding message-id) aligned with listItems indices
   const filteredMessages = useMemo(
@@ -290,7 +323,46 @@ function VirtualizedMessageListComponent(
           >
             {message.role === "user" ? (
               message.content ? (
-                <UserMessageContent>{message.content}</UserMessageContent>
+                editingTurnIndex === message.turnIndex ? (
+                  <div className="flex w-full flex-col gap-2 rounded-2xl bg-secondary/50 px-4 py-3">
+                    <Textarea
+                      autoFocus
+                      className="min-h-[100px] w-full resize-none border-none bg-transparent p-0 focus-visible:ring-0"
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                          handleSaveEdit();
+                        } else if (e.key === "Escape") {
+                          handleCancelEdit();
+                        }
+                      }}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={handleCancelEdit}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleSaveEdit}>
+                        Save & Resubmit
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <UserMessageContent>{message.content}</UserMessageContent>
+                    <MessageActions className="
+                    hover-reveal
+                     opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+                      <MessageCopyButton content={message.content} />
+                      {onEditTurn && message.turnIndex !== undefined && (
+                        <MessageEditButton onEdit={() => handleStartEdit(message.turnIndex!, message.content || "")} />
+                      )}
+                      {onDeleteTurn && message.turnIndex !== undefined && (
+                        <MessageDeleteButton onDelete={() => onDeleteTurn(message.turnIndex!)} />
+                      )}
+                    </MessageActions>
+                  </>
+                )
               ) : null
             ) : (
               <>
@@ -310,6 +382,9 @@ function VirtualizedMessageListComponent(
                     {message.content && <MessageCopyButton content={message.content} />}
                     {onForkSession && message.turnIndex !== undefined && (
                       <MessageForkButton onFork={() => onForkSession(message.turnIndex!)} />
+                    )}
+                    {onDeleteTurn && message.turnIndex !== undefined && (
+                      <MessageDeleteButton onDelete={() => onDeleteTurn(message.turnIndex!)} />
                     )}
                   </MessageActions>
                 )}

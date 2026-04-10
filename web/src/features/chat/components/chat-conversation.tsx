@@ -39,6 +39,8 @@ type ChatConversationProps = {
   isSearchOpen: boolean;
   onSearchOpenChange: (open: boolean) => void;
   onForkSession?: (turnIndex: number) => void;
+  onDeleteTurn?: (turnIndex: number) => void;
+  onEditTurn?: (turnIndex: number, newContent: string) => void;
 };
 
 export function ChatConversation({
@@ -54,6 +56,8 @@ export function ChatConversation({
   isSearchOpen,
   onSearchOpenChange,
   onForkSession,
+  onDeleteTurn,
+  onEditTurn,
 }: ChatConversationProps) {
   const listRef = useRef<VirtualizedMessageListHandle>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -191,6 +195,8 @@ export function ChatConversation({
             highlightedMessageIndex={highlightedIndex}
             onAtBottomChange={setIsAtBottom}
             onForkSession={onForkSession}
+            onDeleteTurn={onDeleteTurn}
+            onEditTurn={onEditTurn}
           />
         </div>
       )}

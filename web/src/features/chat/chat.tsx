@@ -84,6 +84,10 @@ type ChatWorkspaceProps = {
   maxContextSize?: number;
   /** Fork session at a specific turn */
   onForkSession?: (turnIndex: number) => void;
+  /** Delete turn and subsequent turns */
+  onDeleteTurn?: (turnIndex: number) => void;
+  /** Edit turn and re-submit */
+  onEditTurn?: (turnIndex: number, newContent: string) => void;
 };
 
 type ToolApproval = NonNullable<LiveMessage["toolCall"]>["approval"];
@@ -113,6 +117,8 @@ export const ChatWorkspace = memo(function ChatWorkspaceComponent({
   maxContextSize,
   slashCommands = [],
   onForkSession,
+  onDeleteTurn,
+  onEditTurn,
 }: ChatWorkspaceProps): ReactElement {
   const [blocksExpanded, setBlocksExpanded] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -272,6 +278,8 @@ export const ChatWorkspace = memo(function ChatWorkspaceComponent({
             isSearchOpen={isSearchOpen}
             onSearchOpenChange={setIsSearchOpen}
             onForkSession={onForkSession}
+            onDeleteTurn={onDeleteTurn}
+            onEditTurn={onEditTurn}
           />
         </div>
 

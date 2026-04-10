@@ -47,6 +47,7 @@ from kimi_cli.web.store.sessions import (
     run_auto_archive,
     save_session_metadata,
 )
+from kimi_cli.wire.file import parse_wire_file_metadata
 from kimi_cli.wire.jsonrpc import (
     ErrorCodes,
     JSONRPCErrorObject,
@@ -1087,6 +1088,53 @@ async def add_bookmark(
         invalidate_sessions_cache()
 
     return BookmarkTurnResponse(bookmarked_turns=bookmarked_turns)
+
+
+@router.delete("/{session_id}/turn/{turn_index}", summary="Delete a turn and all subsequent turns")
+async def delete_turn(
+    session_id: UUID,
+    turn_index: int,
+    runner: KimiCLIRunner = Depends(get_runner),
+) -> None:
+    """Delete a turn and all subsequent turns from the session."""
+    session = get_editable_session(session_id, runner)
+    source_dir = session.kimi_cli_session.dir
+    wire_path = source_dir / "wire.jsonl"
+    context_path = source_dir / "context.jsonl"
+
+    # Truncate at turn_index - 1 to remove turn_index and all subsequent turns
+    target_turn = turn_index - 1
+
+    try:
+        truncated_wire_lines = truncate_wire_at_turn(wire_path, target_turn)
+        truncated_context_lines = truncate_context_at_turn(context_path, target_turn)
+    except ValueError as e:
+        # If target_turn is -1, we can just clear the files (with header for wire)
+        if target_turn == -1:
+            truncated_wire_lines: list[str] = []
+            # Find metadata header if it exists
+            if wire_path.exists():
+                with open(wire_path, encoding="utf-8") as f:
+                    for line in f:
+                        if parse_wire_file_metadata(line):
+                            truncated_wire_lines.append(line.strip())
+                            break
+            if not truncated_wire_lines:
+                # Fallback to default metadata
+                truncated_wire_lines = [json.dumps({"type": "metadata", "protocol_version": "1.0"})]
+            truncated_context_lines = []
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            ) from e
+
+    # Rewrite files
+    wire_path.write_text("\n".join(truncated_wire_lines) + "\n", encoding="utf-8")
+    context_path.write_text("\n".join(truncated_context_lines) + "\n", encoding="utf-8")
+
+    # Refresh session metadata
+    await session.kimi_cli_session.refresh()
 
 
 @router.delete("/{session_id}/bookmark/{turn_index}", summary="Remove a turn bookmark")

@@ -173,4 +173,6 @@ export type ChatOperations = {
   sendMessage: (text: string, attachments?: FileUIPart[]) => Promise<void>;
   cancelStream: () => void;
   clearMessages: () => void;
+  deleteTurn: (turnIndex: number) => Promise<void>;
+  editTurn: (turnIndex: number, newContent: string) => Promise<void>;
 };

@@ -99,6 +99,8 @@ type UseSessionsReturn = {
   bulkDeleteSessions: (sessionIds: string[]) => Promise<number>;
   /** Fork a session at a specific turn index */
   forkSession: (sessionId: string, turnIndex: number) => Promise<Session>;
+  /** Delete a turn and all subsequent turns from a session */
+  deleteTurn: (sessionId: string, turnIndex: number) => Promise<void>;
 };
 
 const normalizeSessionPath = (value?: string): string => {
@@ -1051,6 +1053,39 @@ export function useSessions(): UseSessionsReturn {
     [],
   );
 
+  /**
+   * Delete a turn and all subsequent turns from a session
+   */
+  const deleteTurn = useCallback(
+    async (sessionId: string, turnIndex: number): Promise<void> => {
+      try {
+        const basePath = getApiBaseUrl();
+        const response = await fetch(
+          `${basePath}/api/sessions/${encodeURIComponent(
+            sessionId,
+          )}/turn/${encodeURIComponent(turnIndex)}`,
+          {
+            method: "DELETE",
+            headers: {
+              ...getAuthHeader(),
+            },
+          },
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.detail || "Failed to delete turn");
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to delete turn";
+        setError(message);
+        throw err;
+      }
+    },
+    [],
+  );
+
   return {
     sessions,
     archivedSessions,
@@ -1088,5 +1123,6 @@ export function useSessions(): UseSessionsReturn {
     bulkUnarchiveSessions,
     bulkDeleteSessions,
     forkSession,
+    deleteTurn,
   };
 }

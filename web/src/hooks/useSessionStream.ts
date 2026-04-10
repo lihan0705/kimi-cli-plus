@@ -132,6 +132,7 @@ import {
   type SubagentEventWire,
   extractEvent,
 } from "./wireTypes";
+import { getAuthHeader } from "../lib/auth";
 import { createMessageId, getApiBaseUrl } from "./utils";
 import { kimiCliVersion } from "@/lib/version";
 import { handleToolResult, useToolEventsStore, type TodoItem } from "@/features/tool/store";
@@ -234,6 +235,10 @@ type UseSessionStreamReturn = {
   setMessages: React.Dispatch<React.SetStateAction<LiveMessage[]>>;
   /** Clear all messages */
   clearMessages: () => void;
+  /** Delete a turn and all subsequent turns */
+  deleteTurn: (turnIndex: number) => Promise<void>;
+  /** Edit a turn and re-submit */
+  editTurn: (turnIndex: number, newContent: string) => Promise<void>;
   /** Connection error if any */
   error: Error | null;
   /** Available slash commands from the server */
@@ -2651,6 +2656,85 @@ export function useSessionStream(
     [],
   );
 
+  const deleteTurn = useCallback(
+    async (turnIndex: number) => {
+      if (!sessionId) return;
+      try {
+        const basePath = getApiBaseUrl();
+        const response = await fetch(
+          `${basePath}/api/sessions/${encodeURIComponent(
+            sessionId,
+          )}/turn/${encodeURIComponent(turnIndex)}`,
+          {
+            method: "DELETE",
+            headers: {
+              ...getAuthHeader(),
+            },
+          },
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.detail || "Failed to delete turn");
+        }
+
+        // Successfully deleted in backend, now refresh UI by reconnecting
+        disconnect();
+        // connect() will be called by useEffect when resetState finishes
+        // but we can also call it manually if we want to be faster
+        resetState();
+        setMessages([]);
+        connect();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to delete turn";
+        onError?.(err instanceof Error ? err : new Error(message));
+      }
+    },
+    [sessionId, disconnect, connect, resetState, setMessages, onError],
+  );
+
+  const editTurn = useCallback(
+    async (turnIndex: number, newContent: string) => {
+      if (!sessionId) return;
+      try {
+        // 1. Delete the turn and everything after it
+        const basePath = getApiBaseUrl();
+        const response = await fetch(
+          `${basePath}/api/sessions/${encodeURIComponent(
+            sessionId,
+          )}/turn/${encodeURIComponent(turnIndex)}`,
+          {
+            method: "DELETE",
+            headers: {
+              ...getAuthHeader(),
+            },
+          },
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.detail || "Failed to prepare edit (delete turn failed)");
+        }
+
+        // 2. Refresh state
+        disconnect();
+        resetState();
+        setMessages([]);
+
+        // 3. Reconnect and send the new prompt
+        // We set pendingMessageRef so it's sent after connection
+        pendingMessageRef.current = newContent;
+        connect();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to edit turn";
+        onError?.(err instanceof Error ? err : new Error(message));
+      }
+    },
+    [sessionId, disconnect, connect, resetState, setMessages, onError],
+  );
+
   return {
     messages,
     status,
@@ -2670,6 +2754,8 @@ export function useSessionStream(
     connect,
     setMessages,
     clearMessages,
+    deleteTurn,
+    editTurn,
     error,
     slashCommands,
   };
