@@ -19,23 +19,18 @@ export function KimiCliBrand({
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <a
-        href="https://www.kimi.com/code"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-      >
+      <div className="flex items-center gap-2">
         <img
-          src="/logo.png"
-          alt="Kimi"
+          src="/qingwa.png"
+          alt="KC Plus"
           width={logoPx}
           height={logoPx}
-          className={logoSize}
+          className={cn(logoSize, "object-contain")}
         />
         <span className={cn(textSizeClass, "font-semibold text-foreground")}>
-          Kimi Code
+          KC Plus
         </span>
-      </a>
+      </div>
       {showVersion && (
         <span
           className={cn("text-muted-foreground font-medium", versionPadding)}

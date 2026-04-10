@@ -424,20 +424,15 @@ function App() {
                       : "opacity-0 -translate-x-2 pointer-events-none select-none",
                   )}
                 >
-                  <a
-                    href="https://www.kimi.com/code"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:opacity-80 transition-opacity"
-                  >
+                  <div className="flex items-center justify-center">
                     <img
-                      src="/logo.png"
-                      alt="Kimi"
+                      src="/qingwa.png"
+                      alt="KC Plus"
                       width={24}
                       height={24}
-                      className="size-6"
+                      className="size-6 object-contain"
                     />
-                  </a>
+                  </div>
                   <button
                     type="button"
                     aria-label="Expand sidebar"
