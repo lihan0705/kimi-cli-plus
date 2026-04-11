@@ -672,7 +672,10 @@ class KimiSoul:
             # Sanitize history before sending to LLM for compaction
             sanitized_history = [sanitize_message(m) for m in self._context.history]
             return await self._compaction.compact(
-                sanitized_history, self._runtime.llm, custom_instruction=custom_instruction
+                sanitized_history,
+                self._runtime.llm,
+                custom_instruction=custom_instruction,
+                previous_summary=self._context.last_summary,
             )
 
         @tenacity.retry(
@@ -694,6 +697,9 @@ class KimiSoul:
         await self._context.clear()
         await self._checkpoint()
         await self._context.append_message(compaction_result.messages)
+
+        # Persist the new summary for next time
+        await self._context.update_summary(compaction_result.summary)
 
         # Estimate token count so context_usage is not reported as 0%
         await self._context.update_token_count(compaction_result.estimated_token_count)
