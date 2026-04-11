@@ -36,7 +36,7 @@ async def test_export_writes_markdown_file(tmp_path: Path) -> None:
     ]
 
     output = tmp_path / "session.md"
-    await shell_export_import.export(app, str(output))  # type: ignore[reportGeneralTypeIssues]
+    await shell_export_import.export(app, str(output))  # pyright: ignore[reportGeneralTypeIssues] # type: ignore[invalid-await]
 
     assert output.exists()
     content = output.read_text(encoding="utf-8")
@@ -51,7 +51,7 @@ async def test_import_from_file_appends_message_and_wire_markers(tmp_path: Path)
     source_file = tmp_path / "source.md"
     source_file.write_text("previous conversation context", encoding="utf-8")
 
-    await shell_export_import.import_context(app, str(source_file))  # type: ignore[reportGeneralTypeIssues]
+    await shell_export_import.import_context(app, str(source_file))  # pyright: ignore[reportGeneralTypeIssues] # type: ignore[invalid-await]
 
     assert app.soul.context.append_message.await_count == 1
     imported_message = app.soul.context.append_message.await_args.args[0]
@@ -92,7 +92,7 @@ async def test_import_from_session_appends_message_and_wire_markers(
 
     monkeypatch.setattr(Session, "find", fake_find)
 
-    await shell_export_import.import_context(app, "old-session-id")  # type: ignore[reportGeneralTypeIssues]
+    await shell_export_import.import_context(app, "old-session-id")  # pyright: ignore[reportGeneralTypeIssues] # type: ignore[invalid-await]
 
     assert app.soul.context.append_message.await_count == 1
     imported_message = app.soul.context.append_message.await_args.args[0]
@@ -120,7 +120,7 @@ async def test_import_directory_path_prints_clear_error(tmp_path: Path, monkeypa
     print_mock = Mock()
     monkeypatch.setattr(shell_export_import.console, "print", print_mock)
 
-    await shell_export_import.import_context(app, str(target_dir))  # type: ignore[reportGeneralTypeIssues]
+    await shell_export_import.import_context(app, str(target_dir))  # pyright: ignore[reportGeneralTypeIssues] # type: ignore[invalid-await]
 
     assert print_mock.called
     rendered = " ".join(str(arg) for args in print_mock.call_args_list for arg in args.args)

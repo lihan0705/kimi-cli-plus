@@ -95,7 +95,13 @@ sitename: GitHub
 date: 2025-02-23
 categories: ['issue:2873381615']
 ---
-The default parameter value for `optimizer` should probably be `adamw` instead of `adamW` according to how `get_optimizer` is written.\
+The default parameter value for `optimizer` should probably be `adamw` instead of `adamW` according to how `get_optimizer` is written.
+The default parameter value for
+optimizer
+should probably beadamw
+instead ofadamW
+according to howget_optimizer
+is written.\
 """
     )
 
