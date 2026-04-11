@@ -11,7 +11,9 @@ Only write entries that are worth mentioning to users.
 
 ## Unreleased
 
-- Core: Pass session ID as `user_id` metadata to Anthropic API
+## 2.0.0 (2026-04-11)
+
+- Major: Bump version to 2.0.0
 
 ## 1.17.0 (2026-03-03)
 

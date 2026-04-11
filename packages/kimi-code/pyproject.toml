@@ -1,6 +1,6 @@
 [project]
 name = "kimi-code"
-version = "1.17.0"
+version = "2.0.0"
 description = "Kimi Code is a CLI agent that lives in your terminal."
 readme = "README.md"
 requires-python = ">=3.12"
