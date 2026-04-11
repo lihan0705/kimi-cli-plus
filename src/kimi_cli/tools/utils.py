@@ -5,6 +5,8 @@ from jinja2 import Environment, Undefined
 from kosong.tooling import BriefDisplayBlock, DisplayBlock, ToolError, ToolReturnValue
 from kosong.utils.typing import JsonType
 
+from kimi_cli.utils.string import sanitize_unicode
+
 
 class _KeepPlaceholderUndefined(Undefined):
     def __str__(self) -> str:
@@ -97,6 +99,9 @@ class ToolResultBuilder:
         """
         if self.is_full:
             return 0
+
+        # Sanitize text before writing to buffer
+        text = sanitize_unicode(text)
 
         lines = text.splitlines(keepends=True)
         if not lines:

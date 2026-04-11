@@ -6,6 +6,7 @@ from kosong.message import Message
 from kosong.tooling.error import ToolRuntimeError
 
 from kimi_cli.llm import ModelCapability
+from kimi_cli.utils.string import sanitize_unicode
 from kimi_cli.wire.types import (
     ContentPart,
     ImageURLPart,
@@ -18,6 +19,22 @@ from kimi_cli.wire.types import (
 
 def system(message: str) -> ContentPart:
     return TextPart(text=f"<system>{message}</system>")
+
+
+def sanitize_message(message: Message) -> Message:
+    """Sanitize message content parts."""
+    content: list[ContentPart] = []
+    for part in message.content:
+        if isinstance(part, TextPart):
+            content.append(TextPart(text=sanitize_unicode(part.text)))
+        else:
+            content.append(part)
+    return Message(
+        role=message.role,
+        content=content,
+        tool_call_id=message.tool_call_id,
+        tool_calls=message.tool_calls,
+    )
 
 
 def tool_result_to_message(tool_result: ToolResult) -> Message:

@@ -34,7 +34,7 @@ from kimi_cli.soul import (
 from kimi_cli.soul.agent import Agent, Runtime
 from kimi_cli.soul.compaction import CompactionResult, SimpleCompaction, should_auto_compact
 from kimi_cli.soul.context import Context
-from kimi_cli.soul.message import check_message, system, tool_result_to_message
+from kimi_cli.soul.message import check_message, sanitize_message, system, tool_result_to_message
 from kimi_cli.soul.slash import registry as soul_slash_registry
 from kimi_cli.soul.toolset import KimiToolset
 from kimi_cli.tools.dmail import NAME as SendDMail_NAME
@@ -551,12 +551,15 @@ class KimiSoul:
         chat_provider = self._runtime.llm.chat_provider
 
         async def _run_step_once() -> StepResult:
+            # Sanitize history before sending to LLM
+            sanitized_history = [sanitize_message(m) for m in self._context.history]
+
             # run an LLM step (may be interrupted)
             return await kosong.step(
                 chat_provider,
                 self._agent.system_prompt,
                 self._agent.toolset,
-                self._context.history,
+                sanitized_history,
                 on_message_part=wire_send,
                 on_tool_result=wire_send,
             )
@@ -666,8 +669,10 @@ class KimiSoul:
         async def _run_compaction_once() -> CompactionResult:
             if self._runtime.llm is None:
                 raise LLMNotSet()
+            # Sanitize history before sending to LLM for compaction
+            sanitized_history = [sanitize_message(m) for m in self._context.history]
             return await self._compaction.compact(
-                self._context.history, self._runtime.llm, custom_instruction=custom_instruction
+                sanitized_history, self._runtime.llm, custom_instruction=custom_instruction
             )
 
         @tenacity.retry(
