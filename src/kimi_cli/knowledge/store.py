@@ -1,0 +1,185 @@
+import json
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
+from uuid import UUID
+
+from kimi_cli.knowledge.models import Category, DocumentMetadata, DocumentStatus
+
+
+class KBStore:
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self._init_db()
+
+    def _get_connection(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+    def _init_db(self):
+        with self._get_connection() as conn:
+            # Main documents table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS documents (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    tags TEXT,
+                    category TEXT NOT NULL,
+                    subcategory TEXT,
+                    status TEXT NOT NULL,
+                    confidence REAL,
+                    relevance_score INTEGER,
+                    temporal_type TEXT,
+                    key_claims TEXT,
+                    source_type TEXT,
+                    original_source TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # FTS5 virtual table for content
+            # We store the ID unindexed to join back to documents
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
+                    id UNINDEXED,
+                    content
+                )
+            """)
+
+            # Links table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS links (
+                    source_id TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    link_type TEXT,
+                    PRIMARY KEY (source_id, target_id, link_type),
+                    FOREIGN KEY (source_id) REFERENCES documents(id) ON DELETE CASCADE,
+                    FOREIGN KEY (target_id) REFERENCES documents(id) ON DELETE CASCADE
+                )
+            """)
+            conn.commit()
+
+    def upsert_document(self, metadata: DocumentMetadata, content: str):
+        data = metadata.model_dump()
+        # Serialize fields that are not native SQLite types
+        data["id"] = str(data["id"])
+        data["tags"] = json.dumps(data["tags"])
+        data["key_claims"] = json.dumps(data["key_claims"])
+        data["created_at"] = data["created_at"].isoformat()
+        data["updated_at"] = data["updated_at"].isoformat()
+
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join(["?"] * len(data))
+        updates = ", ".join([f"{k} = excluded.{k}" for k in data.keys() if k != "id"])
+
+        with self._get_connection() as conn:
+            # Upsert document metadata
+            conn.execute(f"""
+                INSERT INTO documents ({columns})
+                VALUES ({placeholders})
+                ON CONFLICT(id) DO UPDATE SET {updates}
+            """, list(data.values()))
+
+            # Upsert content into FTS
+            # Delete old entry first because FTS doesn't have ON CONFLICT
+            conn.execute("DELETE FROM content_fts WHERE id = ?", (data["id"],))
+            conn.execute("INSERT INTO content_fts (id, content) VALUES (?, ?)", (data["id"], content))
+            conn.commit()
+
+    def delete_document(self, doc_id: UUID):
+        doc_id_str = str(doc_id)
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM documents WHERE id = ?", (doc_id_str,))
+            conn.execute("DELETE FROM content_fts WHERE id = ?", (doc_id_str,))
+            conn.execute("DELETE FROM links WHERE source_id = ? OR target_id = ?", (doc_id_str, doc_id_str))
+            conn.commit()
+
+    def _row_to_metadata(self, row: sqlite3.Row) -> DocumentMetadata:
+        data = dict(row)
+        data["tags"] = json.loads(data["tags"])
+        data["key_claims"] = json.loads(data["key_claims"])
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+        return DocumentMetadata.model_validate(data)
+
+    def search(self, query: str, limit: int = 10) -> List[DocumentMetadata]:
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT d.*
+                FROM documents d
+                JOIN content_fts f ON d.id = f.id
+                WHERE f.content MATCH ?
+                ORDER BY rank
+                LIMIT ?
+            """, (query, limit))
+            return [self._row_to_metadata(row) for row in cursor.fetchall()]
+
+    def list_documents(
+        self, category: Optional[Category] = None, status: Optional[DocumentStatus] = None
+    ) -> List[DocumentMetadata]:
+        query = "SELECT * FROM documents"
+        params = []
+        where_clauses = []
+
+        if category:
+            where_clauses.append("category = ?")
+            params.append(category.value)
+        if status:
+            where_clauses.append("status = ?")
+            params.append(status.value)
+
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
+
+        query += " ORDER BY updated_at DESC"
+
+        with self._get_connection() as conn:
+            cursor = conn.execute(query, params)
+            return [self._row_to_metadata(row) for row in cursor.fetchall()]
+
+    def sync_from_disk(self, root: Path):
+        """
+        Synchronize the database with the content on disk.
+        Scans 'raw/' and 'knowledge/' directories for document structures.
+        A valid document directory must contain both 'metadata.json' and 'document.md'.
+        """
+        found_ids = set()
+
+        # Scan for metadata.json files
+        for metadata_path in root.rglob("metadata.json"):
+            doc_dir = metadata_path.parent
+            content_path = doc_dir / "document.md"
+
+            if not content_path.exists():
+                continue
+
+            try:
+                # Load metadata
+                with open(metadata_path, "r") as f:
+                    metadata = DocumentMetadata.model_validate_json(f.read())
+
+                # Read content
+                with open(content_path, "r") as f:
+                    content = f.read()
+
+                # Upsert into database
+                self.upsert_document(metadata, content)
+                found_ids.add(str(metadata.id))
+            except Exception as e:
+                from loguru import logger
+                logger.error(f"Error syncing document at {doc_dir}: {e}")
+
+        # Cleanup: Remove documents from DB that were not found on disk
+        with self._get_connection() as conn:
+            # Get all current IDs in DB
+            cursor = conn.execute("SELECT id FROM documents")
+            db_ids = {row["id"] for row in cursor.fetchall()}
+
+            ids_to_remove = db_ids - found_ids
+            for doc_id in ids_to_remove:
+                self.delete_document(UUID(doc_id))
