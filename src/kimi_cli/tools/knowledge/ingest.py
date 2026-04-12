@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 from typing import override
 
@@ -9,9 +7,9 @@ from pydantic import BaseModel, Field
 from kimi_cli.knowledge import (
     KBStore,
     LogManager,
+    PDFConverter,
     SourceType,
     URLConverter,
-    PDFConverter,
     ensure_kb_dirs,
     get_kb_root,
 )
@@ -48,7 +46,10 @@ class WikiIngest(CallableTool2[Params]):
                 source_type = SourceType.URL
                 content = URLConverter.convert_url_to_md(source)
                 if not content:
-                    return builder.error(f"Failed to extract content from URL: {source}", brief="URL conversion failed")
+                    return builder.error(
+                        f"Failed to extract content from URL: {source}",
+                        brief="URL conversion failed",
+                    )
             else:
                 path = Path(source).expanduser().resolve()
                 if not path.exists():
@@ -62,10 +63,16 @@ class WikiIngest(CallableTool2[Params]):
                     try:
                         content = path.read_text(encoding="utf-8")
                     except Exception as e:
-                        return builder.error(f"Failed to read file {source}: {e}", brief="File read failed")
+                        return builder.error(
+                            f"Failed to read file {source}: {e}",
+                            brief="File read failed",
+                        )
 
                 if not content:
-                    return builder.error(f"Failed to extract content from file: {source}", brief="File conversion failed")
+                    return builder.error(
+                        f"Failed to extract content from file: {source}",
+                        brief="File conversion failed",
+                    )
 
             # 2. Initialize Pipeline
             db_path = root / "knowledge.db"

@@ -1249,6 +1249,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pykaos" },
     { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'" },
+    { name = "pypdf" },
     { name = "pyyaml" },
     { name = "rich" },
     { name = "ripgrepy" },
@@ -1294,6 +1295,7 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.12.5" },
     { name = "pykaos", editable = "packages/kaos" },
     { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'", specifier = ">=12.1" },
+    { name = "pypdf", specifier = ">=6.10.0" },
     { name = "pyyaml", specifier = "==6.0.3" },
     { name = "rich", specifier = "==14.2.0" },
     { name = "ripgrepy", specifier = "==2.2.0" },
@@ -2424,6 +2426,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/23/3b/b9f61be7b9f9b4e0a6db18b3c35c4c4d589f2d04e963e2174d38c6555a92/pyobjc_framework_cocoa-12.1-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:914b74328c22d8ca261d78c23ef2befc29776e0b85555973927b338c5734ca44", size = 388843, upload-time = "2025-11-14T09:42:05.719Z" },
     { url = "https://files.pythonhosted.org/packages/59/bb/f777cc9e775fc7dae77b569254570fe46eb842516b3e4fe383ab49eab598/pyobjc_framework_cocoa-12.1-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:03342a60fc0015bcdf9b93ac0b4f457d3938e9ef761b28df9564c91a14f0129a", size = 384932, upload-time = "2025-11-14T09:42:29.771Z" },
     { url = "https://files.pythonhosted.org/packages/58/27/b457b7b37089cad692c8aada90119162dfb4c4a16f513b79a8b2b022b33b/pyobjc_framework_cocoa-12.1-cp314-cp314t-macosx_10_15_universal2.whl", hash = "sha256:6ba1dc1bfa4da42d04e93d2363491275fb2e2be5c20790e561c8a9e09b8cf2cc", size = 388970, upload-time = "2025-11-14T09:42:53.964Z" },
+]
+
+[[package]]
+name = "pypdf"
+version = "6.10.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b8/9f/ca96abf18683ca12602065e4ed2bec9050b672c87d317f1079abc7b6d993/pypdf-6.10.0.tar.gz", hash = "sha256:4c5a48ba258c37024ec2505f7e8fd858525f5502784a2e1c8d415604af29f6ef", size = 5314833, upload-time = "2026-04-10T09:34:57.102Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/55/f2/7ebe366f633f30a6ad105f650f44f24f98cb1335c4157d21ae47138b3482/pypdf-6.10.0-py3-none-any.whl", hash = "sha256:90005e959e1596c6e6c84c8b0ad383285b3e17011751cedd17f2ce8fcdfc86de", size = 334459, upload-time = "2026-04-10T09:34:54.966Z" },
 ]
 
 [[package]]

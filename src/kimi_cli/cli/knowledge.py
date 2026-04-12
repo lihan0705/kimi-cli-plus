@@ -196,6 +196,57 @@ def ingest(
     asyncio.run(_run())
 
 
+@cli.command("graph")
+def graph(
+    doc_id: Annotated[str, typer.Argument(help="ID (short or full) of the document to explore")],
+):
+    """Explore the knowledge graph for a document."""
+    store = get_store()
+    # Find the document
+    all_docs = store.list_documents()
+    target_doc = None
+    for doc in all_docs:
+        if str(doc.id).startswith(doc_id):
+            target_doc = doc
+            break
+    
+    if not target_doc:
+        typer.echo(f"Error: No document found with ID '{doc_id}'")
+        return
+
+    console = Console()
+    console.print(f"[bold magenta]Connections for:[/bold magenta] [cyan]{str(target_doc.id)[:8]}[/cyan] [white]{target_doc.title}[/white]")
+    console.print("-" * 50)
+
+    # 1. Outbound Links
+    outbound = store.get_outgoing_links(target_doc.id)
+    console.print("[bold cyan]Links To (Outbound):[/bold cyan]")
+    if not outbound:
+        console.print("  (None)")
+    for doc in outbound:
+        console.print(f"  -> [dim]{str(doc.id)[:8]}[/dim] {doc.title}")
+
+    # 2. Inbound Links
+    inbound = store.get_backlinks(target_doc.id)
+    console.print("\n[bold green]Backlinks (Inbound):[/bold green]")
+    if not inbound:
+        console.print("  (None)")
+    for doc in inbound:
+        console.print(f"  <- [dim]{str(doc.id)[:8]}[/dim] {doc.title}")
+
+    # 3. Related (by Tags - filtered to remove direct links)
+    related_results = store.get_related_documents(target_doc.id)
+    linked_ids = {str(d.id) for d in outbound} | {str(d.id) for d in inbound}
+    
+    tag_related = [(d, s) for d, s in related_results if str(d.id) not in linked_ids]
+    
+    console.print("\n[bold yellow]Related (by Tags):[/bold yellow]")
+    if not tag_related:
+        console.print("  (None)")
+    for doc, score in tag_related:
+        console.print(f"  ~ [dim]{str(doc.id)[:8]}[/dim] {doc.title} (score: {score})")
+
+
 @cli.command("review")
 def review():
     """Review documents in the 'needs_review' queue."""

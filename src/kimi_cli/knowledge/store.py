@@ -9,6 +9,7 @@ from uuid import UUID
 import yaml
 
 from . import paths
+from . import graph
 from .models import Category, DocumentMetadata, DocumentStatus, SearchResult
 
 
@@ -30,6 +31,7 @@ class KBStore:
                 CREATE TABLE IF NOT EXISTS documents (
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
+                    slug TEXT DEFAULT '',
                     description TEXT,
                     tags TEXT,
                     category TEXT NOT NULL,
@@ -45,6 +47,12 @@ class KBStore:
                     updated_at TEXT NOT NULL
                 )
             """)
+
+            # Migration: Add slug column if it doesn't exist
+            cursor = conn.execute("PRAGMA table_info(documents)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if "slug" not in columns:
+                conn.execute("ALTER TABLE documents ADD COLUMN slug TEXT DEFAULT ''")
 
             # FTS5 virtual table for content
             # We store the ID unindexed to join back to documents
@@ -94,6 +102,110 @@ class KBStore:
             conn.execute("DELETE FROM content_fts WHERE id = ?", (data["id"],))
             conn.execute("INSERT INTO content_fts (id, content) VALUES (?, ?)", (data["id"], content))
             conn.commit()
+
+        # Update graph links
+        self.update_document_links(metadata.id, content)
+
+    def update_document_links(self, doc_id: UUID, content: str):
+        """Extract and persist links from document content."""
+        doc_id_str = str(doc_id)
+        links = graph.extract_links(content)
+        
+        resolved_targets = []
+        for link_text in links:
+            target_id = graph.resolve_link(self, link_text)
+            if target_id:
+                resolved_targets.append(str(target_id))
+        
+        with self._get_connection() as conn:
+            # Delete existing links where this document is the source
+            conn.execute("DELETE FROM links WHERE source_id = ?", (doc_id_str,))
+            
+            # Insert new links
+            for target_id_str in resolved_targets:
+                conn.execute(
+                    "INSERT OR IGNORE INTO links (source_id, target_id, link_type) VALUES (?, ?, ?)",
+                    (doc_id_str, target_id_str, "wiki")
+                )
+            conn.commit()
+
+    def get_backlinks(self, doc_id: UUID) -> List[DocumentMetadata]:
+        """Get metadata of documents that link to the given document."""
+        doc_id_str = str(doc_id)
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT d.*
+                FROM documents d
+                JOIN links l ON d.id = l.source_id
+                WHERE l.target_id = ?
+                ORDER BY d.updated_at DESC
+            """, (doc_id_str,))
+            return [self._row_to_metadata(row) for row in cursor.fetchall()]
+
+    def get_outgoing_links(self, doc_id: UUID) -> List[DocumentMetadata]:
+        """Get metadata of documents that this document links to."""
+        doc_id_str = str(doc_id)
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT d.*
+                FROM documents d
+                JOIN links l ON d.id = l.target_id
+                WHERE l.source_id = ?
+                ORDER BY d.updated_at DESC
+            """, (doc_id_str,))
+            return [self._row_to_metadata(row) for row in cursor.fetchall()]
+
+    def get_related_documents(self, doc_id: UUID, limit: int = 10) -> List[Tuple[DocumentMetadata, int]]:
+        """
+        Find related documents based on:
+        - Links (inbound/outbound)
+        - Shared tags (at least 2)
+        Returns a list of (metadata, score) tuples.
+        """
+        doc_id_str = str(doc_id)
+        
+        # 1. Get target doc to extract tags
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM documents WHERE id = ?", (doc_id_str,))
+            row = cursor.fetchone()
+            if not row:
+                return []
+            target = self._row_to_metadata(row)
+        
+        target_tags = set(target.tags)
+        
+        # 2. Get all other documents and calculate scores
+        related_results = []
+        with self._get_connection() as conn:
+            # Get linked doc IDs first for high weighting
+            cursor = conn.execute("""
+                SELECT source_id as linked_id FROM links WHERE target_id = ?
+                UNION
+                SELECT target_id as linked_id FROM links WHERE source_id = ?
+            """, (doc_id_str, doc_id_str))
+            linked_ids = {row["linked_id"] for row in cursor.fetchall()}
+            
+            # Fetch all documents except the current one
+            cursor = conn.execute("SELECT * FROM documents WHERE id != ?", (doc_id_str,))
+            for row in cursor.fetchall():
+                other = self._row_to_metadata(row)
+                score = 0
+                is_linked = str(other.id) in linked_ids
+                
+                # Shared tags
+                other_tags = set(other.tags)
+                shared_tags = target_tags.intersection(other_tags)
+                
+                # Filter criteria: linked OR at least 2 shared tags
+                if is_linked or len(shared_tags) >= 2:
+                    if is_linked:
+                        score += 10
+                    score += len(shared_tags) * 2
+                    related_results.append((other, score))
+                    
+        # Sort by score descending
+        related_results.sort(key=lambda x: x[1], reverse=True)
+        return related_results[:limit]
 
     def delete_document(self, doc_id: UUID):
         doc_id_str = str(doc_id)
@@ -186,6 +298,10 @@ class KBStore:
                 # Load metadata
                 with open(metadata_path, "r") as f:
                     metadata = DocumentMetadata.model_validate_json(f.read())
+                
+                # If slug is missing, recover from folder name
+                if not metadata.slug:
+                    metadata.slug = doc_dir.name
 
                 # Read content
                 with open(content_path, "r") as f:
@@ -287,6 +403,7 @@ class KBStore:
 
             if kb_root:
                 slug = paths.generate_slug(metadata.title, metadata.id)
+                metadata.slug = slug
                 target_dir = paths.get_document_dir(
                     kb_root, slug, metadata.status, metadata.category, metadata.subcategory
                 )

@@ -113,3 +113,61 @@ def test_list_documents_filtering(store, sample_metadata):
     classified_docs = store.list_documents(status=DocumentStatus.classified)
     assert len(classified_docs) == 1
     assert classified_docs[0].id == other_metadata.id
+
+def test_update_document_links(store, sample_metadata):
+    # Create target documents
+    doc1_meta = sample_metadata.model_copy(update={"id": uuid4(), "title": "Target One", "status": DocumentStatus.reviewed})
+    doc2_meta = sample_metadata.model_copy(update={"id": uuid4(), "title": "Target Two", "status": DocumentStatus.classified})
+    store.upsert_document(doc1_meta, "Content 1")
+    store.upsert_document(doc2_meta, "Content 2")
+    
+    # Create source document with links
+    source_meta = sample_metadata.model_copy(update={"id": uuid4(), "title": "Source Doc"})
+    content = "Check out [[Target One]] and [[Target Two|Alias]]. Also a [[Missing Link]]."
+    
+    # This should trigger update_document_links via upsert_document
+    store.upsert_document(source_meta, content)
+    
+    # Verify links in DB
+    with store._get_connection() as conn:
+        cursor = conn.execute("SELECT * FROM links WHERE source_id = ?", (str(source_meta.id),))
+        links = cursor.fetchall()
+        
+    assert len(links) == 2
+    target_ids = {link["target_id"] for link in links}
+    assert str(doc1_meta.id) in target_ids
+    assert str(doc2_meta.id) in target_ids
+    
+    # Update links (remove one, add another)
+    doc3_meta = sample_metadata.model_copy(update={"id": uuid4(), "title": "Target Three", "status": DocumentStatus.reviewed})
+    store.upsert_document(doc3_meta, "Content 3")
+    
+    new_content = "Now only [[Target Three]]."
+    store.upsert_document(source_meta, new_content)
+    
+    with store._get_connection() as conn:
+        cursor = conn.execute("SELECT * FROM links WHERE source_id = ?", (str(source_meta.id),))
+        links = cursor.fetchall()
+        
+    assert len(links) == 1
+    assert links[0]["target_id"] == str(doc3_meta.id)
+
+def test_get_backlinks(store, sample_metadata):
+    target_meta = sample_metadata.model_copy(update={"id": uuid4(), "title": "The Target", "status": DocumentStatus.reviewed})
+    store.upsert_document(target_meta, "Target content")
+    
+    source1_meta = sample_metadata.model_copy(update={"id": uuid4(), "title": "Source One"})
+    store.upsert_document(source1_meta, "Linking to [[The Target]]")
+    
+    source2_meta = sample_metadata.model_copy(update={"id": uuid4(), "title": "Source Two"})
+    store.upsert_document(source2_meta, "Also linking to [[The Target]]")
+    
+    source3_meta = sample_metadata.model_copy(update={"id": uuid4(), "title": "Source Three"})
+    store.upsert_document(source3_meta, "Not linking to anything")
+    
+    backlinks = store.get_backlinks(target_meta.id)
+    assert len(backlinks) == 2
+    backlink_ids = {doc.id for doc in backlinks}
+    assert source1_meta.id in backlink_ids
+    assert source2_meta.id in backlink_ids
+    assert source3_meta.id not in backlink_ids

@@ -43,6 +43,7 @@ class DocumentMetadata(BaseModel):
 
     id: UUID
     title: str
+    slug: str = ""
     description: str
     tags: list[str] = Field(default_factory=list)
     category: Category

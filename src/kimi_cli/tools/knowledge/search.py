@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 from typing import override
 
@@ -16,7 +14,9 @@ from kimi_cli.utils.logging import logger
 
 
 class Params(BaseModel):
-    query: str = Field(description="The search query to find relevant documents in the Knowledge Base.")
+    query: str = Field(
+        description="The search query to find relevant documents in the Knowledge Base."
+    )
     limit: int = Field(default=10, description="The maximum number of results to return.")
 
 

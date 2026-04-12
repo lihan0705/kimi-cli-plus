@@ -594,6 +594,91 @@ async def _show_plugins(app: Shell, soul: KimiSoul) -> None:
         console.print(BulletColumns(Group(*lines), bullet_style="green"))
 
 
+@registry.command(aliases=["knowledge", "kb"])
+async def wiki(app: Shell, args: str):
+    """Knowledge Base: /wiki [status|list|search <query>]"""
+    from rich.table import Table
+    from rich.text import Text
+
+    from kimi_cli.knowledge import (
+        Category,
+        DocumentStatus,
+        KBStore,
+        ensure_kb_dirs,
+        get_kb_root,
+    )
+
+    root = get_kb_root()
+    ensure_kb_dirs(root)
+    db_path = root / "knowledge.db"
+
+    if not db_path.exists():
+        console.print(
+            "[yellow]Knowledge Base is empty. Use WikiIngest tool to add documents.[/yellow]"
+        )
+        return
+
+    store = KBStore(db_path)
+    parts = args.strip().split(maxsplit=1)
+    subcmd = parts[0].lower() if parts else "status"
+    sub_args = parts[1] if len(parts) > 1 else ""
+
+    if subcmd == "status":
+        docs = store.list_documents()
+        total = len(docs)
+        needs_review = len([d for d in docs if d.status == DocumentStatus.needs_review])
+
+        category_counts: dict[str, int] = {}
+        for cat in Category:
+            category_counts[cat.value] = 0
+        for d in docs:
+            category_counts[d.category.value] = category_counts.get(d.category.value, 0) + 1
+
+        console.print(f"[bold]Knowledge Base[/bold] — {root}")
+        console.print(f"  Total documents: [cyan]{total}[/cyan]")
+        if needs_review:
+            console.print(f"  Needs review: [yellow]{needs_review}[/yellow]")
+        sorted_cats = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+        for cat, count in sorted_cats:
+            if count > 0:
+                console.print(f"  {cat}: [green]{count}[/green]")
+
+    elif subcmd == "list":
+        docs = store.list_documents()
+        if not docs:
+            console.print("[yellow]No documents in the Knowledge Base.[/yellow]")
+            return
+
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("ID", style="dim", width=10)
+        table.add_column("Title")
+        table.add_column("Category")
+        table.add_column("Status")
+        for doc in docs:
+            table.add_row(str(doc.id)[:8], doc.title, doc.category.value, doc.status.value)
+        console.print(table)
+
+    elif subcmd == "search":
+        if not sub_args:
+            console.print("[red]Usage: /wiki search <query>[/red]")
+            return
+        results = store.search(sub_args, limit=10)
+        if not results:
+            console.print(f"[yellow]No results for: {sub_args}[/yellow]")
+            return
+        for res in results:
+            console.print(
+                Text.from_markup(
+                    f"  [cyan]{str(res.metadata.id)[:8]}[/cyan] "
+                    f"[bold]{res.metadata.title}[/bold] "
+                    f"[green]({res.metadata.category.value})[/green]"
+                )
+            )
+
+    else:
+        console.print("[red]Usage: /wiki [status|list|search <query>][/red]")
+
+
 @registry.command
 async def mcp(app: Shell, args: str):
     """Show MCP servers and tools"""

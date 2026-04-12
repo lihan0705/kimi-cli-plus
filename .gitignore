@@ -37,6 +37,7 @@ result-*
 # Conductor & Superpowers
 conductor/
 superpowers/
+superpower/
 
 # Rust files
 target/

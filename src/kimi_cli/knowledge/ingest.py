@@ -120,6 +120,7 @@ class IngestPipeline:
 
         # 4. Apply Slug
         slug = generate_slug(metadata.title, metadata.id)
+        metadata.slug = slug
 
         # 5. Store
         # Determine the target path
