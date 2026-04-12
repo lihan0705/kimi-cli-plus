@@ -155,3 +155,111 @@ def ingest(
         typer.echo(f"Status: {metadata.status}")
 
     asyncio.run(_run())
+
+
+@cli.command("review")
+def review():
+    """Review documents in the 'needs_review' queue."""
+    store = get_store()
+    docs = store.list_documents(status=DocumentStatus.needs_review)
+
+    if not docs:
+        typer.echo("No documents need review. Your knowledge base is clean!")
+        return
+
+    console = Console()
+    table = Table(title="Documents Needing Review")
+    table.add_column("ID (Short)", style="cyan")
+    table.add_column("Title", style="white")
+    table.add_column("Category", style="green")
+    table.add_column("Created At", style="dim")
+
+    for i, doc in enumerate(docs):
+        table.add_row(
+            str(doc.id)[:8],
+            doc.title,
+            doc.category.value,
+            doc.created_at.strftime("%Y-%m-%d"),
+        )
+
+    console.print(table)
+    
+    choice = typer.prompt("Enter the ID (short) of the document to review (or 'q' to quit)")
+    if choice.lower() == 'q':
+        return
+
+    # Find the document
+    target_doc = None
+    for doc in docs:
+        if str(doc.id).startswith(choice):
+            target_doc = doc
+            break
+    
+    if not target_doc:
+        typer.echo(f"Error: No document found with ID starting with '{choice}'")
+        return
+
+    _edit_and_sync(target_doc)
+
+
+@cli.command("edit")
+def edit(
+    doc_id: Annotated[str, typer.Argument(help="ID (short or full) of the document to edit")],
+):
+    """Edit any document in the knowledge base."""
+    store = get_store()
+    # Find the document
+    all_docs = store.list_documents()
+    target_doc = None
+    for doc in all_docs:
+        if str(doc.id).startswith(doc_id):
+            target_doc = doc
+            break
+    
+    if not target_doc:
+        typer.echo(f"Error: No document found with ID '{doc_id}'")
+        return
+
+    _edit_and_sync(target_doc)
+
+
+def _edit_and_sync(doc):
+    """Helper to open editor and sync metadata."""
+    import os
+    import subprocess
+    from kimi_cli.knowledge.paths import get_document_dir, get_kb_root
+    
+    root = get_kb_root()
+    # Need to find the current physical path (could be in raw/ or knowledge/)
+    slug = generate_slug(doc.title, doc.id)
+    doc_dir = get_document_dir(root, slug, doc.status, doc.category, doc.subcategory)
+    
+    # Fallback if get_document_dir fails to find it due to state mismatch
+    if not doc_dir.exists():
+        # Try raw/
+        doc_dir = root / "raw" / slug
+        if not doc_dir.exists():
+            # Try knowledge/misc/
+            doc_dir = root / "knowledge" / "misc" / slug
+            if not doc_dir.exists():
+                # Brute force search
+                found = list(root.rglob(f"*{str(doc.id)[:8]}"))
+                if found:
+                    doc_dir = found[0]
+                else:
+                    typer.echo("Error: Could not locate document directory on disk.")
+                    return
+
+    file_to_edit = doc_dir / "document.md"
+    editor = os.environ.get("EDITOR", "vim")
+    
+    typer.echo(f"Opening {file_to_edit} in {editor}...")
+    subprocess.call([editor, str(file_to_edit)])
+    
+    # Sync after editing
+    store = get_store()
+    new_dir = store.sync_metadata_from_md(doc_dir)
+    
+    if new_dir != doc_dir:
+        typer.echo(f"Document promoted/moved to: {new_dir.relative_to(root)}")
+    typer.echo("Sync complete.")

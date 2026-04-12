@@ -66,18 +66,42 @@ class IngestPipeline:
         )
         
         # 3. Parse Result
-        json_str = result.message.extract_text().strip()
-        if "```json" in json_str:
-            json_str = json_str.split("```json")[1].split("```")[0].strip()
-        elif "```" in json_str:
-            json_str = json_str.split("```")[1].split("```")[0].strip()
-            
+        raw_response = result.message.extract_text().strip()
+        
+        # Extract JSON block
+        json_str = ""
+        if "```json" in raw_response:
+            json_str = raw_response.split("```json")[1].split("```")[0].strip()
+        
+        # Extract Markdown block (the Wiki page)
+        # We look for the second code block or the block starting with ---
+        wiki_content = ""
+        if "---" in raw_response:
+            # Assume the block starting with --- is the Wiki page
+            parts = raw_response.split("---")
+            if len(parts) >= 3:
+                wiki_content = "---" + "---".join(parts[1:])
+        
+        # Fallback if no explicit block but JSON exists
+        if not wiki_content:
+            # If no YAML block found, use the original content but this shouldn't happen with the new skill
+            wiki_content = content
+
         try:
+            if not json_str:
+                # If LLM failed to provide a JSON block, try to find any JSON-like structure
+                import re
+                match = re.search(r"\{.*\}", raw_response, re.DOTALL)
+                if match:
+                    json_str = match.group(0)
+                else:
+                    raise ValueError(f"No JSON block found in LLM response: {raw_response}")
+            
             data = json.loads(json_str)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse LLM response as JSON: {result.message.content}") from e
+            raise ValueError(f"Failed to parse LLM response as JSON: {raw_response}") from e
 
-        # Ensure ID and source info
+        # Ensure ID and source info (Objective Facts)
         data["id"] = uuid4()
         data["source_type"] = source_type
         data["original_source"] = original_source
@@ -98,34 +122,28 @@ class IngestPipeline:
         slug = generate_slug(metadata.title, metadata.id)
 
         # 5. Store
-        # Determine the target path using paths.get_document_dir
-        # If status is needs_review, we override the category to 'misc'
-        effective_category = metadata.category
-        effective_subcategory = metadata.subcategory
-        
+        # Determine the target path
         if metadata.status == DocumentStatus.needs_review:
-            # We treat 'misc' as a pseudo-category for routing to knowledge/misc/
-            # This requires Category to have a value that maps to 'misc' or handling it here.
-            # Based on models.py, we don't have a 'misc' Category, so we'll 
-            # use a direct path construction or ensure paths.py can handle it.
             doc_dir = self.root / "knowledge" / "misc" / slug
         else:
             doc_dir = get_document_dir(
                 self.root,
                 slug,
                 metadata.status,
-                category=effective_category,
-                subcategory=effective_subcategory
+                category=metadata.category,
+                subcategory=metadata.subcategory
             )
         
         doc_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save metadata.json and document.md
+        # Save metadata.json (System source of truth)
         (doc_dir / "metadata.json").write_text(metadata.model_dump_json(indent=2))
-        (doc_dir / "document.md").write_text(content)
+        
+        # Save document.md (The Wiki page with YAML)
+        (doc_dir / "document.md").write_text(wiki_content.strip())
         
         # Update KBStore
-        self.kb_store.upsert_document(metadata, content)
+        self.kb_store.upsert_document(metadata, wiki_content.strip())
         
         # Append to LogManager
         self.log_manager.append("ingest", metadata.title, metadata.id)

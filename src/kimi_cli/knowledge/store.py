@@ -1,11 +1,15 @@
 import json
+import shutil
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from uuid import UUID
 
-from kimi_cli.knowledge.models import Category, DocumentMetadata, DocumentStatus
+import yaml
+
+from . import paths
+from .models import Category, DocumentMetadata, DocumentStatus
 
 
 class KBStore:
@@ -183,3 +187,100 @@ class KBStore:
             ids_to_remove = db_ids - found_ids
             for doc_id in ids_to_remove:
                 self.delete_document(UUID(doc_id))
+
+    def _parse_yaml_frontmatter(self, content: str) -> dict:
+        """Parse YAML frontmatter from a string."""
+        if not content.startswith("---"):
+            return {}
+
+        parts = content.split("---", 2)
+        if len(parts) < 3:
+            return {}
+
+        try:
+            return yaml.safe_load(parts[1]) or {}
+        except yaml.YAMLError:
+            return {}
+
+    def sync_metadata_from_md(self, doc_dir: Path) -> Path:
+        """
+        Synchronize metadata from YAML frontmatter in document.md with metadata.json.
+        Updates the SQLite database. Handles directory moves if category/subcategory changes.
+        """
+        content_path = doc_dir / "document.md"
+        metadata_path = doc_dir / "metadata.json"
+
+        if not content_path.exists() or not metadata_path.exists():
+            return doc_dir
+
+        # Read content and parse YAML
+        with open(content_path, "r") as f:
+            content = f.read()
+
+        yaml_data = self._parse_yaml_frontmatter(content)
+
+        # Load current metadata
+        with open(metadata_path, "r") as f:
+            metadata = DocumentMetadata.model_validate_json(f.read())
+
+        if not yaml_data:
+            # Idempotent: still sync to DB
+            self.upsert_document(metadata, content)
+            return doc_dir
+
+        # Update fields from YAML
+        # title, category, subcategory, tags, relevance_score, key_claims
+        old_category = metadata.category
+        old_subcategory = metadata.subcategory
+
+        if "title" in yaml_data:
+            metadata.title = yaml_data["title"]
+        if "category" in yaml_data:
+            metadata.category = Category(yaml_data["category"])
+        if "subcategory" in yaml_data:
+            metadata.subcategory = yaml_data["subcategory"]
+        if "tags" in yaml_data:
+            metadata.tags = yaml_data["tags"]
+        if "relevance_score" in yaml_data:
+            metadata.relevance_score = yaml_data["relevance_score"]
+        if "key_claims" in yaml_data:
+            metadata.key_claims = yaml_data["key_claims"]
+
+        # Auto-promotion: if user edited YAML, it's no longer 'raw' or 'needs_review'
+        if metadata.status in [DocumentStatus.raw, DocumentStatus.needs_review]:
+            metadata.status = DocumentStatus.reviewed
+
+        metadata.updated_at = datetime.now()
+
+        # Handle Category/Subcategory Change
+        target_dir = doc_dir
+        if metadata.category != old_category or metadata.subcategory != old_subcategory:
+            # Find KB root from doc_dir structure
+            kb_root = None
+            parts = doc_dir.parts
+            if "knowledge" in parts:
+                idx = parts.index("knowledge")
+                kb_root = Path(*parts[:idx])
+            elif "raw" in parts:
+                idx = parts.index("raw")
+                kb_root = Path(*parts[:idx])
+
+            if kb_root:
+                slug = paths.generate_slug(metadata.title, metadata.id)
+                target_dir = paths.get_document_dir(
+                    kb_root, slug, metadata.status, metadata.category, metadata.subcategory
+                )
+
+                if target_dir != doc_dir:
+                    target_dir.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(doc_dir), str(target_dir))
+                    metadata_path = target_dir / "metadata.json"
+
+        # Update metadata.json in the (possibly new) location
+        with open(metadata_path, "w") as f:
+            f.write(metadata.model_dump_json())
+
+        # Update SQLite database
+        self.upsert_document(metadata, content)
+
+        return target_dir

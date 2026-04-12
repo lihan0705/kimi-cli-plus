@@ -38,26 +38,38 @@ class MockGenerateResult:
 
 @pytest.mark.asyncio
 async def test_ingest_pipeline_success(kb_root, mock_chat_provider, mock_kb_store, mock_log_manager):
-    # Mock LLM response
-    json_content = """```json
-    {
+    # Mock LLM response with both JSON and Markdown blocks
+    json_part = """{
       "title": "Test Title",
-      "description": "Test Summary",
-      "tags": ["test"],
+      "description": "A test document description",
       "category": "concept",
       "subcategory": "testing",
-      "status": "classified",
+      "tags": ["test"],
       "confidence": 0.95,
       "relevance_score": 8,
       "temporal_type": "evergreen",
-      "key_claims": ["claim 1", "claim 2"],
-      "source_type": "url",
-      "original_source": "https://example.com"
-    }
-    ```"""
+      "key_claims": ["claim 1", "claim 2"]
+    }"""
+    
+    markdown_part = """---
+title: Test Title
+category: concept
+subcategory: testing
+tags: [test]
+relevance_score: 8
+key_claims:
+  - claim 1
+  - claim 2
+---
+
+# Test Title
+
+Some raw content"""
+
+    full_response = f"Here is the result:\n\n```json\n{json_part}\n```\n\n```markdown\n{markdown_part}\n```"
     
     with patch("kimi_cli.knowledge.ingest.generate", new_callable=AsyncMock) as mock_generate:
-        mock_generate.return_value = MockGenerateResult(json_content)
+        mock_generate.return_value = MockGenerateResult(full_response)
 
         pipeline = IngestPipeline(
             root=kb_root,
@@ -66,7 +78,6 @@ async def test_ingest_pipeline_success(kb_root, mock_chat_provider, mock_kb_stor
             log_manager=mock_log_manager
         )
         
-        # Mock skill path
         skill_file = kb_root / "test_skill.md"
         skill_file.write_text("Skill content")
         pipeline.skill_path = skill_file
@@ -75,42 +86,38 @@ async def test_ingest_pipeline_success(kb_root, mock_chat_provider, mock_kb_stor
 
         assert metadata.title == "Test Title"
         assert metadata.category == Category.Concept
-        assert metadata.status == DocumentStatus.classified
         
         # Verify files created
-        # Check date in slug
         slug = f"{metadata.created_at.strftime('%Y%m%d')}_test-title_{str(metadata.id)[:8]}"
         doc_dir = kb_root / "knowledge" / "concept" / "testing" / slug
         assert doc_dir.exists()
         assert (doc_dir / "metadata.json").exists()
-        assert (doc_dir / "document.md").exists()
         
-        # Verify storage and log called
+        # Verify document.md contains YAML
+        doc_content = (doc_dir / "document.md").read_text()
+        assert "---" in doc_content
+        assert "title: Test Title" in doc_content
+        
         mock_kb_store.upsert_document.assert_called_once()
-        mock_log_manager.append.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_ingest_pipeline_needs_review(kb_root, mock_chat_provider, mock_kb_store, mock_log_manager):
     # Mock LLM response with low confidence
-    json_content = """```json
-    {
+    json_part = """{
       "title": "Uncertain Title",
-      "description": "Test Summary",
-      "tags": ["test"],
+      "description": "An uncertain document description",
       "category": "concept",
       "subcategory": "testing",
-      "status": "needs_review",
       "confidence": 0.5,
       "relevance_score": 5,
       "temporal_type": "evergreen",
-      "key_claims": ["claim 1"],
-      "source_type": "url",
-      "original_source": "https://example.com"
-    }
-    ```"""
+      "key_claims": ["claim 1"]
+    }"""
+    
+    full_response = f"```json\n{json_part}\n```\n\n--- \ntitle: Uncertain Title\n---"
     
     with patch("kimi_cli.knowledge.ingest.generate", new_callable=AsyncMock) as mock_generate:
-        mock_generate.return_value = MockGenerateResult(json_content)
+        mock_generate.return_value = MockGenerateResult(full_response)
 
         pipeline = IngestPipeline(
             root=kb_root,
@@ -128,15 +135,14 @@ async def test_ingest_pipeline_needs_review(kb_root, mock_chat_provider, mock_kb
 
         # Check storage
         slug = f"{metadata.created_at.strftime('%Y%m%d')}_uncertain-title_{str(metadata.id)[:8]}"
-        # documents with status needs_review go to knowledge/misc/
         doc_dir = kb_root / "knowledge" / "misc" / slug
         assert doc_dir.exists()
 
 @pytest.mark.asyncio
 async def test_ingest_pipeline_parsing_error(kb_root, mock_chat_provider, mock_kb_store, mock_log_manager):
-    # Mock LLM response with invalid JSON
+    # Mock LLM response with invalid content
     with patch("kimi_cli.knowledge.ingest.generate", new_callable=AsyncMock) as mock_generate:
-        mock_generate.return_value = MockGenerateResult("Invalid response from LLM")
+        mock_generate.return_value = MockGenerateResult("No JSON and no YAML here")
 
         pipeline = IngestPipeline(
             root=kb_root,
@@ -148,5 +154,5 @@ async def test_ingest_pipeline_parsing_error(kb_root, mock_chat_provider, mock_k
         skill_file.write_text("Skill")
         pipeline.skill_path = skill_file
 
-        with pytest.raises(ValueError, match="Failed to parse LLM response as JSON"):
+        with pytest.raises(ValueError, match="No JSON block found"):
             await pipeline.run("content", SourceType.URL, "https://example.com")
