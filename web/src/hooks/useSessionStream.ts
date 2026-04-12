@@ -1751,18 +1751,9 @@ export function useSessionStream(
         case "CompactionEnd": {
           const compactMsgId = compactionMessageIdRef.current;
           compactionMessageIdRef.current = null;
-          // Clear old messages after compaction, only keep the current turn
-          // Also remove the compaction indicator message
+          // Remove the compaction indicator message
           setMessages((prev) => {
-            let lastUserMsgIndex = -1;
-            for (let i = prev.length - 1; i >= 0; i--) {
-              if (prev[i].role === "user") {
-                lastUserMsgIndex = i;
-                break;
-              }
-            }
-            const kept = lastUserMsgIndex >= 0 ? prev.slice(lastUserMsgIndex) : [];
-            return compactMsgId ? kept.filter((m) => m.id !== compactMsgId) : kept;
+            return compactMsgId ? prev.filter((m) => m.id !== compactMsgId) : prev;
           });
           break;
         }
