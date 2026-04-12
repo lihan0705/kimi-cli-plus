@@ -83,7 +83,8 @@ def test_search(store, sample_metadata):
     
     results = store.search("fox")
     assert len(results) == 1
-    assert results[0].id == sample_metadata.id
+    assert results[0].metadata.id == sample_metadata.id
+    assert "fox" in results[0].snippet
     
     results = store.search("cat")
     assert len(results) == 0

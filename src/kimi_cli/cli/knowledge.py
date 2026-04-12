@@ -14,6 +14,7 @@ from kimi_cli.knowledge import (
     ensure_kb_dirs,
     get_kb_root,
 )
+from kimi_cli.knowledge.compiler import compile_wiki_index
 
 cli = typer.Typer(help="Manage Knowledge Base (Wiki).")
 
@@ -82,6 +83,28 @@ def list_docs(
     console.print(table)
 
 
+@cli.command("search")
+def search(
+    query: Annotated[str, typer.Argument(help="Search query")],
+    limit: Annotated[int, typer.Option("--limit", "-l", help="Max results")] = 10,
+):
+    """Search for documents in the Knowledge Base using FTS5."""
+    store = get_store()
+    results = store.search(query, limit=limit)
+
+    if not results:
+        typer.echo("No documents found matching your query.")
+        return
+
+    console = Console()
+    for res in results:
+        typer.echo("-" * 40)
+        typer.echo(f"ID: [cyan]{str(res.metadata.id)[:8]}[/cyan] | Title: [bold white]{res.metadata.title}[/bold white]")
+        typer.echo(f"Category: [green]{res.metadata.category.value}[/green] | Subcategory: {res.metadata.subcategory}")
+        typer.echo(f"Snippet: {res.snippet}")
+    typer.echo("-" * 40)
+
+
 @cli.command("sync")
 def sync():
     """Synchronize Knowledge Base from disk."""
@@ -91,6 +114,18 @@ def sync():
 
     docs = store.list_documents()
     typer.echo(f"Synchronization complete. Total documents: {len(docs)}")
+    
+    # Recompile index
+    compile_wiki_index(root)
+    typer.echo(f"Index updated at {root}/index.md")
+
+
+@cli.command("index")
+def index():
+    """Recompile the Knowledge Base index.md."""
+    root = get_kb_root()
+    compile_wiki_index(root)
+    typer.echo(f"Index recompiled at {root}/index.md")
 
 
 @cli.command("ingest")
@@ -153,6 +188,10 @@ def ingest(
         typer.echo(f"ID: {metadata.id}")
         typer.echo(f"Category: {metadata.category}")
         typer.echo(f"Status: {metadata.status}")
+        
+        # Recompile index
+        compile_wiki_index(root)
+        typer.echo(f"Index updated at {root}/index.md")
 
     asyncio.run(_run())
 

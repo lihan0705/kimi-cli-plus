@@ -3,13 +3,13 @@ import shutil
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from uuid import UUID
 
 import yaml
 
 from . import paths
-from .models import Category, DocumentMetadata, DocumentStatus
+from .models import Category, DocumentMetadata, DocumentStatus, SearchResult
 
 
 class KBStore:
@@ -111,17 +111,37 @@ class KBStore:
         data["updated_at"] = datetime.fromisoformat(data["updated_at"])
         return DocumentMetadata.model_validate(data)
 
-    def search(self, query: str, limit: int = 10) -> List[DocumentMetadata]:
+    def search(self, query: str, limit: int = 10) -> List[SearchResult]:
         with self._get_connection() as conn:
             cursor = conn.execute("""
-                SELECT d.*
+                SELECT d.*, snippet(content_fts, 1, '...', '...', '...', 64) as snippet
                 FROM documents d
                 JOIN content_fts f ON d.id = f.id
                 WHERE f.content MATCH ?
                 ORDER BY rank
                 LIMIT ?
             """, (query, limit))
-            return [self._row_to_metadata(row) for row in cursor.fetchall()]
+            return [
+                SearchResult(
+                    metadata=self._row_to_metadata(row),
+                    snippet=row["snippet"]
+                )
+                for row in cursor.fetchall()
+            ]
+
+    def get_document(self, doc_id: UUID) -> Optional[Tuple[DocumentMetadata, str]]:
+        doc_id_str = str(doc_id)
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT d.*, f.content
+                FROM documents d
+                JOIN content_fts f ON d.id = f.id
+                WHERE d.id = ?
+            """, (doc_id_str,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_metadata(row), row["content"]
 
     def list_documents(
         self, category: Optional[Category] = None, status: Optional[DocumentStatus] = None

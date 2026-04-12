@@ -56,3 +56,10 @@ class DocumentMetadata(BaseModel):
     original_source: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class SearchResult(BaseModel):
+    """Result of a search query in the Knowledge Base."""
+
+    metadata: DocumentMetadata
+    snippet: str

@@ -95,7 +95,7 @@ def test_sync_from_disk_basic(store, kb_root):
     # Verify content in FTS
     results = store.search("Content 1")
     assert len(results) == 1
-    assert results[0].id == doc1_id
+    assert results[0].metadata.id == doc1_id
 
 def test_sync_from_disk_cleanup(store, kb_root):
     # Add a document to the store that is NOT on disk

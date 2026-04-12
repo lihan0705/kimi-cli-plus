@@ -6,6 +6,7 @@ from .models import (
     Category,
     DocumentMetadata,
     DocumentStatus,
+    SearchResult,
     SourceType,
     TemporalType,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "KBStore",
     "LogManager",
     "PDFConverter",
+    "SearchResult",
     "SessionConverter",
     "SourceType",
     "TemporalType",
