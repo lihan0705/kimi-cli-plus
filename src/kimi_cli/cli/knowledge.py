@@ -91,3 +91,67 @@ def sync():
 
     docs = store.list_documents()
     typer.echo(f"Synchronization complete. Total documents: {len(docs)}")
+
+
+@cli.command("ingest")
+def ingest(
+    source: Annotated[str, typer.Argument(help="URL or local file path to ingest")],
+):
+    """Ingest a URL or local file into the Knowledge Base."""
+    from kimi_cli.app import KimiCLI
+    from kimi_cli.knowledge.ingest import IngestPipeline
+    from kimi_cli.knowledge.converter import URLConverter, PDFConverter
+    from kimi_cli.knowledge.log import LogManager
+    from kimi_cli.knowledge.models import SourceType
+    import asyncio
+
+    async def _run():
+        root = get_kb_root()
+        ensure_kb_dirs(root)
+        
+        # We need a chat provider. Use KimiCLI to load the default one.
+        kimi = KimiCLI.create()
+        if not kimi.runtime.llm:
+            typer.echo("Error: No LLM configured.")
+            return
+
+        # 1. Convert
+        if source.startswith(("http://", "https://")):
+            source_type = SourceType.URL
+            content = URLConverter.convert_url_to_md(source)
+        else:
+            path = Path(source).expanduser().resolve()
+            if not path.exists():
+                typer.echo(f"Error: File not found: {source}")
+                return
+            source_type = SourceType.File
+            if path.suffix.lower() == ".pdf":
+                content = PDFConverter.convert_pdf_to_md(path)
+            else:
+                content = path.read_text(encoding="utf-8")
+
+        if not content:
+            typer.echo("Error: Failed to extract content.")
+            return
+
+        # 2. Pipeline
+        db_path = root / "knowledge.db"
+        kb_store = KBStore(db_path)
+        log_manager = LogManager(root)
+        
+        pipeline = IngestPipeline(
+            root=root,
+            chat_provider=kimi.runtime.llm.chat_provider,
+            kb_store=kb_store,
+            log_manager=log_manager
+        )
+
+        typer.echo(f"Ingesting {source_type} content...")
+        metadata = await pipeline.run(content, source_type, source)
+        
+        typer.echo(f"Successfully ingested: {metadata.title}")
+        typer.echo(f"ID: {metadata.id}")
+        typer.echo(f"Category: {metadata.category}")
+        typer.echo(f"Status: {metadata.status}")
+
+    asyncio.run(_run())

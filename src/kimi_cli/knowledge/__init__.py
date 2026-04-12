@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .converter import PDFConverter, SessionConverter, URLConverter
 from .log import LogManager
 from .models import (
     Category,
@@ -22,8 +23,11 @@ __all__ = [
     "DocumentStatus",
     "KBStore",
     "LogManager",
+    "PDFConverter",
+    "SessionConverter",
     "SourceType",
     "TemporalType",
+    "URLConverter",
     "ensure_kb_dirs",
     "generate_slug",
     "get_document_dir",
