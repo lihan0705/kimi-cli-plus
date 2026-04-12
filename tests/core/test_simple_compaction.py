@@ -8,9 +8,6 @@ import kimi_cli.prompts as prompts
 from kimi_cli.soul.compaction import CompactionResult, SimpleCompaction, should_auto_compact
 from kimi_cli.wire.types import TextPart, ThinkPart
 
-from kosong.message import TextPart
-from kosong import Message
-
 
 def test_prepare_returns_original_when_not_enough_messages():
     messages = [Message(role="user", content=[TextPart(text="Only one message")])]
@@ -20,15 +17,18 @@ def test_prepare_returns_original_when_not_enough_messages():
     assert result == snapshot(
         SimpleCompaction.PrepareResult(
             compact_message=Message(
-    role="user",
-    content=[
-        TextPart(text="""\
+                role="user",
+                content=[
+                    TextPart(
+                        text="""\
 ## Message 1
 Role: user
 Content:
-"""),
-        TextPart(text="Only one message"),
-        TextPart(text="""\
+"""
+                    ),
+                    TextPart(text="Only one message"),
+                    TextPart(
+                        text="""\
 
 
 ---
@@ -103,9 +103,10 @@ The above is a list of messages in an agent conversation. You are now given a ta
 - [Any crucial information not covered above]
 - ...more...
 </important_context>
-"""),
-    ],
-),
+"""
+                    ),
+                ],
+            ),
             to_preserve=[],
         )
     )
@@ -148,19 +149,24 @@ def test_prepare_builds_compact_message_and_preserves_tail():
         Message(
             role="user",
             content=[
-                TextPart(text="""\
+                TextPart(
+                    text="""\
 ## Message 1
 Role: user
 Content:
-"""),
+"""
+                ),
                 TextPart(text="Old question"),
-                TextPart(text="""\
+                TextPart(
+                    text="""\
 ## Message 2
 Role: assistant
 Content:
-"""),
+"""
+                ),
                 TextPart(text="Old answer"),
-                TextPart(text="""\
+                TextPart(
+                    text="""\
 
 
 ---
@@ -235,7 +241,9 @@ The above is a list of messages in an agent conversation. You are now given a ta
 - [Any crucial information not covered above]
 - ...more...
 </important_context>
-""")],
+"""
+                ),
+            ],
         )
     )
     assert result.to_preserve == snapshot(
