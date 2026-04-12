@@ -22,13 +22,13 @@ export function KimiCliBrand({
       <div className="flex items-center gap-2">
         <img
           src="/qingwa.png"
-          alt="KC Plus"
+          alt="Kimi Code Plus"
           width={logoPx}
           height={logoPx}
           className={cn(logoSize, "object-contain")}
         />
         <span className={cn(textSizeClass, "font-semibold text-foreground")}>
-          KC Plus
+          Kimi Code Plus
         </span>
       </div>
       {showVersion && (

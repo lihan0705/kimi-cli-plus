@@ -427,7 +427,7 @@ function App() {
                   <div className="flex items-center justify-center">
                     <img
                       src="/qingwa.png"
-                      alt="KC Plus"
+                      alt="Kimi Code Plus"
                       width={24}
                       height={24}
                       className="size-6 object-contain"

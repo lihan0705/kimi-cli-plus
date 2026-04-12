@@ -11,6 +11,9 @@ Only write entries that are worth mentioning to users.
 
 ## Unreleased
 
+- Core: Enhance long-context stability with Unicode sanitization, rolling summaries, and robust compaction logic
+- Web UI: Rebrand 'KC Plus' to 'Kimi Code Plus' for better brand consistency
+
 ## 2.0.0 (2026-04-11)
 
 - Major: Bump version to 2.0.0
