@@ -356,6 +356,12 @@ export function useSessionStream(
   // Track MCP loading indicator message so we can remove it on MCPLoadingEnd
   const mcpLoadingMessageIdRef = useRef<string | null>(null);
 
+  // Turn-local counters for stable IDs during replay
+  const turnAssistantThinkCounterRef = useRef(0);
+  const turnAssistantTextCounterRef = useRef(0);
+  const turnAssistantStatusCounterRef = useRef(0);
+  const turnAssistantMessageIdCounterRef = useRef(0);
+
   // Wrapped setMessages
   const setMessages: typeof setMessagesInternal = useCallback((action) => {
     setMessagesInternal(action);
@@ -803,6 +809,10 @@ export function useSessionStream(
     firstTurnCompleteCalledRef.current = false;
     // Reset turn counter
     turnCounterRef.current = 0;
+    turnAssistantThinkCounterRef.current = 0;
+    turnAssistantTextCounterRef.current = 0;
+    turnAssistantStatusCounterRef.current = 0;
+    turnAssistantMessageIdCounterRef.current = 0;
     // Clear history_complete timeout
     if (historyCompleteTimeoutRef.current) {
       window.clearTimeout(historyCompleteTimeoutRef.current);
@@ -971,6 +981,12 @@ export function useSessionStream(
     (event: WireEvent, isReplay = false, rpcMessageId?: string | number) => {
       switch (event.type) {
         case "TurnBegin": {
+          // Reset per-turn counters for stable IDs
+          turnAssistantThinkCounterRef.current = 0;
+          turnAssistantTextCounterRef.current = 0;
+          turnAssistantStatusCounterRef.current = 0;
+          turnAssistantMessageIdCounterRef.current = 0;
+
           // Reset step state to ensure slash commands create new messages
           resetStepState();
 
@@ -990,8 +1006,8 @@ export function useSessionStream(
           pendingClearRef.current =
             userText === "/clear" || userText === "/reset";
 
-          // Add user message
-          const userMessageId = getNextMessageId("user");
+          // Add user message with stable turn-based ID
+          const userMessageId = `user-turn-${currentTurnIndex}`;
           const userMessage: LiveMessage = {
             id: userMessageId,
             role: "user",
@@ -1024,17 +1040,20 @@ export function useSessionStream(
           if (!isReplay) {
             clearAwaitingFirstResponse();
           }
+          const currentTurnIndex = turnCounterRef.current > 0 ? turnCounterRef.current - 1 : 0;
           if (event.payload.type === "think" && event.payload.think) {
             // Accumulate thinking content
             currentThinkingRef.current += event.payload.think;
 
             // Create or update thinking message
             if (!thinkingMessageIdRef.current) {
-              thinkingMessageIdRef.current = getNextMessageId("assistant");
+              const idx = turnAssistantThinkCounterRef.current++;
+              thinkingMessageIdRef.current = `assistant-think-turn-${currentTurnIndex}-${idx}`;
               const thinkingMsg: LiveMessage = {
                 id: thinkingMessageIdRef.current!,
                 role: "assistant",
                 variant: "thinking",
+                turnIndex: currentTurnIndex,
                 thinking: currentThinkingRef.current,
                 isStreaming: !isReplay,
               };
@@ -1080,7 +1099,8 @@ export function useSessionStream(
 
             // Create or update text message
             if (!textMessageIdRef.current) {
-              textMessageIdRef.current = getNextMessageId("assistant");
+              const idx = turnAssistantTextCounterRef.current++;
+              textMessageIdRef.current = `assistant-text-turn-${currentTurnIndex}-${idx}`;
               upsertMessage({
                 id: textMessageIdRef.current!,
                 role: "assistant",
@@ -1129,12 +1149,14 @@ export function useSessionStream(
             }
           }
 
-          // Create tool message
-          const toolMessageId = getNextMessageId("assistant");
+          // Create tool message with stable toolCall.id
+          const currentTurnIndex = turnCounterRef.current > 0 ? turnCounterRef.current - 1 : 0;
+          const toolMessageId = toolCall.id;
           upsertMessage({
             id: toolMessageId,
             role: "assistant",
             variant: "tool",
+            turnIndex: currentTurnIndex,
             toolCall: {
               title: toolCall.function.name,
               type: "tool-call" as ToolUIPart["type"],
@@ -1367,11 +1389,13 @@ export function useSessionStream(
               };
             });
           } else {
-            const fallbackMessageId = getNextMessageId("assistant");
+            const currentTurnIndex = turnCounterRef.current > 0 ? turnCounterRef.current - 1 : 0;
+            const fallbackMessageId = payload.tool_call_id;
             const approvalMessage: LiveMessage = {
               id: fallbackMessageId,
               role: "assistant",
               variant: "tool",
+              turnIndex: currentTurnIndex,
               isStreaming: false,
               toolCall: {
                 title: payload.action,
@@ -1548,11 +1572,13 @@ export function useSessionStream(
               };
             });
           } else {
-            const fallbackMessageId = getNextMessageId("assistant");
+            const currentTurnIndex = turnCounterRef.current > 0 ? turnCounterRef.current - 1 : 0;
+            const fallbackMessageId = qPayload.tool_call_id;
             const questionMessage: LiveMessage = {
               id: fallbackMessageId,
               role: "assistant",
               variant: "tool",
+              turnIndex: currentTurnIndex,
               isStreaming: false,
               toolCall: {
                 title: "AskUserQuestion",
@@ -1611,11 +1637,14 @@ export function useSessionStream(
           // If we have a message_id, create a special message to display it
           const messageId = event.payload.message_id;
           if (messageId) {
-            const displayMessageId = getNextMessageId("assistant");
+            const currentTurnIndex = turnCounterRef.current > 0 ? turnCounterRef.current - 1 : 0;
+            const idx = turnAssistantMessageIdCounterRef.current++;
+            const displayMessageId = `assistant-msgid-turn-${currentTurnIndex}-${idx}`;
             upsertMessage({
               id: displayMessageId,
               role: "assistant",
               variant: "message-id",
+              turnIndex: currentTurnIndex,
               messageId,
             });
           }
@@ -1642,15 +1671,16 @@ export function useSessionStream(
             clearAwaitingFirstResponse();
           }
           if (event.payload.text) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: getNextMessageId("assistant"),
-                role: "assistant",
-                variant: "status",
-                content: event.payload.text,
-              },
-            ]);
+            const currentTurnIndex = turnCounterRef.current > 0 ? turnCounterRef.current - 1 : 0;
+            const idx = turnAssistantStatusCounterRef.current++;
+            const noticeMessageId = `assistant-notice-turn-${currentTurnIndex}-${idx}`;
+            upsertMessage({
+              id: noticeMessageId,
+              role: "assistant",
+              variant: "status",
+              turnIndex: currentTurnIndex,
+              content: event.payload.text,
+            });
           }
           break;
         }
@@ -1733,18 +1763,17 @@ export function useSessionStream(
         }
 
         case "CompactionBegin": {
-          const compactionMsgId = getNextMessageId("assistant");
+          const currentTurnIndex = turnCounterRef.current > 0 ? turnCounterRef.current - 1 : 0;
+          const compactionMsgId = `assistant-compaction-turn-${currentTurnIndex}`;
           compactionMessageIdRef.current = compactionMsgId;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: compactionMsgId,
-              role: "assistant",
-              variant: "status",
-              content: "Compacting conversation history…",
-              isStreaming: true,
-            },
-          ]);
+          upsertMessage({
+            id: compactionMsgId,
+            role: "assistant",
+            variant: "status",
+            turnIndex: currentTurnIndex,
+            content: "Compacting conversation history…",
+            isStreaming: true,
+          });
           break;
         }
 
@@ -1759,18 +1788,17 @@ export function useSessionStream(
         }
 
         case "MCPLoadingBegin": {
-          const mcpMsgId = getNextMessageId("assistant");
+          const currentTurnIndex = turnCounterRef.current > 0 ? turnCounterRef.current - 1 : 0;
+          const mcpMsgId = `assistant-mcp-loading-turn-${currentTurnIndex}`;
           mcpLoadingMessageIdRef.current = mcpMsgId;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: mcpMsgId,
-              role: "assistant",
-              variant: "status",
-              content: "Connecting to MCP servers…",
-              isStreaming: true,
-            },
-          ]);
+          upsertMessage({
+            id: mcpMsgId,
+            role: "assistant",
+            variant: "status",
+            turnIndex: currentTurnIndex,
+            content: "Connecting to MCP servers…",
+            isStreaming: true,
+          });
           break;
         }
 
@@ -1872,6 +1900,7 @@ export function useSessionStream(
             "[SessionStream] History loaded, waiting for environment...",
           );
           isReplayingRef.current = false;
+          setIsReplayingHistory(false);
           // Keep status as "submitted" - input stays disabled until session_status
           setStatus((current) => (current === "ready" ? current : "submitted"));
 
@@ -2204,7 +2233,6 @@ export function useSessionStream(
 
     awaitingIdleRef.current = false;
     resetState();
-    setMessages([]);
     setStatus("submitted");
     setAwaitingFirstResponse(Boolean(pendingMessageRef.current));
 
@@ -2671,10 +2699,13 @@ export function useSessionStream(
 
         // Successfully deleted in backend, now refresh UI by reconnecting
         disconnect();
-        // connect() will be called by useEffect when resetState finishes
-        // but we can also call it manually if we want to be faster
         resetState();
-        setMessages([]);
+        // Surgically remove deleted turns from local state to avoid flicker and scroll reset
+        setMessages((prev) =>
+          prev.filter(
+            (m) => m.turnIndex === undefined || m.turnIndex < turnIndex,
+          ),
+        );
         connect();
       } catch (err) {
         const message =
@@ -2711,7 +2742,12 @@ export function useSessionStream(
         // 2. Refresh state
         disconnect();
         resetState();
-        setMessages([]);
+        // Surgically remove edited turns from local state to avoid flicker and scroll reset
+        setMessages((prev) =>
+          prev.filter(
+            (m) => m.turnIndex === undefined || m.turnIndex < turnIndex,
+          ),
+        );
 
         // 3. Reconnect and send the new prompt
         // We set pendingMessageRef so it's sent after connection

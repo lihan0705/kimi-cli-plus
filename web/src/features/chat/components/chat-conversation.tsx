@@ -17,6 +17,7 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { StateSnapshot } from "react-virtuoso";
 import { isMacOS } from "@/hooks/utils";
 import {
   VirtualizedMessageList,
@@ -60,6 +61,8 @@ export function ChatConversation({
   onEditTurn,
 }: ChatConversationProps) {
   const listRef = useRef<VirtualizedMessageListHandle>(null);
+  const listStateByConversationRef = useRef<Record<string, StateSnapshot>>({});
+  const [refreshKey, setRefreshKey] = useState(0);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
@@ -107,9 +110,52 @@ export function ChatConversation({
     isLoadingResponse || emptyNoSessionState || emptySessionState;
 
   const conversationKey = hasSelectedSession
-    ? `session:${selectedSessionId}`
+    ? `session:${selectedSessionId}:${refreshKey}`
     : "empty";
+  const restoreStateFrom = listStateByConversationRef.current[conversationKey];
   const newSessionShortcutModifier = isMacOS() ? "Cmd" : "Ctrl";
+
+  const captureListState = useCallback(async () => {
+    if (!hasSelectedSession) {
+      return;
+    }
+    const state = await listRef.current?.getStateSnapshot();
+    if (state) {
+      listStateByConversationRef.current[conversationKey] = state;
+    }
+  }, [conversationKey, hasSelectedSession]);
+
+  const handleDeleteTurnPreservingScroll = useCallback(
+    async (turnIndex: number) => {
+      await captureListState();
+      // Use the same state for the NEXT key so it can be restored on remount
+      const state = listStateByConversationRef.current[conversationKey];
+      const nextKey = `session:${selectedSessionId}:${refreshKey + 1}`;
+      if (state) {
+        listStateByConversationRef.current[nextKey] = state;
+      }
+
+      await onDeleteTurn?.(turnIndex);
+      setRefreshKey((prev) => prev + 1);
+    },
+    [captureListState, onDeleteTurn, conversationKey, selectedSessionId, refreshKey],
+  );
+
+  const handleEditTurnPreservingScroll = useCallback(
+    async (turnIndex: number, newContent: string) => {
+      await captureListState();
+      // Use the same state for the NEXT key so it can be restored on remount
+      const state = listStateByConversationRef.current[conversationKey];
+      const nextKey = `session:${selectedSessionId}:${refreshKey + 1}`;
+      if (state) {
+        listStateByConversationRef.current[nextKey] = state;
+      }
+
+      onEditTurn?.(turnIndex, newContent);
+      setRefreshKey((prev) => prev + 1);
+    },
+    [captureListState, onEditTurn, conversationKey, selectedSessionId, refreshKey],
+  );
 
   return (
     <div
@@ -188,6 +234,7 @@ export function ChatConversation({
             ref={listRef}
             messages={messages}
             conversationKey={conversationKey}
+            restoreStateFrom={restoreStateFrom}
             pendingApprovalMap={pendingApprovalMap}
             onApprovalAction={onApprovalAction}
             canRespondToApproval={canRespondToApproval}
@@ -195,8 +242,8 @@ export function ChatConversation({
             highlightedMessageIndex={highlightedIndex}
             onAtBottomChange={setIsAtBottom}
             onForkSession={onForkSession}
-            onDeleteTurn={onDeleteTurn}
-            onEditTurn={onEditTurn}
+            onDeleteTurn={handleDeleteTurnPreservingScroll}
+            onEditTurn={handleEditTurnPreservingScroll}
           />
         </div>
       )}

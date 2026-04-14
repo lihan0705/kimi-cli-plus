@@ -1,4 +1,5 @@
 import copy
+import json
 import uuid
 from collections.abc import AsyncIterator, Sequence
 from typing import TYPE_CHECKING, Any, Self, TypedDict, Unpack, cast, get_args
@@ -327,7 +328,7 @@ class OpenAIResponses:
         for tool_call in message.tool_calls or []:
             result.append(
                 {
-                    "arguments": tool_call.function.arguments or "{}",
+                    "arguments": _normalize_tool_call_arguments(tool_call.function.arguments),
                     "call_id": tool_call.id,
                     "name": tool_call.function.name,
                     "type": "function_call",
@@ -335,6 +336,117 @@ class OpenAIResponses:
             )
 
         return result
+
+
+def _normalize_tool_call_arguments(arguments: str | None) -> str:
+    """Ensure outbound tool-call arguments are valid JSON strings."""
+    if not arguments:
+        return "{}"
+
+    try:
+        return json.dumps(json.loads(arguments), ensure_ascii=False)
+    except json.JSONDecodeError:
+        pass
+
+    cleaned = _strip_stray_empty_containers(arguments)
+    if cleaned != arguments:
+        try:
+            return json.dumps(json.loads(cleaned), ensure_ascii=False)
+        except json.JSONDecodeError:
+            pass
+
+    for candidate in _iter_complete_json_fragments(arguments):
+        try:
+            return json.dumps(json.loads(candidate), ensure_ascii=False)
+        except json.JSONDecodeError:
+            continue
+
+    return "{}"
+
+
+def _strip_stray_empty_containers(raw: str) -> str:
+    chars: list[str] = []
+    i = 0
+    in_string = False
+    escaped = False
+    while i < len(raw):
+        char = raw[i]
+        if in_string:
+            chars.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            i += 1
+            continue
+
+        if char == '"':
+            in_string = True
+            chars.append(char)
+            i += 1
+            continue
+
+        if raw.startswith("{}", i) or raw.startswith("[]", i):
+            previous = _previous_significant_char(chars)
+            following = _next_significant_char(raw, i + 2)
+            if previous not in (":", ",") and following in (None, "}", "]"):
+                i += 2
+                continue
+
+        chars.append(char)
+        i += 1
+
+    return "".join(chars)
+
+
+def _previous_significant_char(chars: list[str]) -> str | None:
+    for char in reversed(chars):
+        if not char.isspace():
+            return char
+    return None
+
+
+def _next_significant_char(raw: str, start: int) -> str | None:
+    for char in raw[start:]:
+        if not char.isspace():
+            return char
+    return None
+
+
+def _iter_complete_json_fragments(raw: str) -> list[str]:
+    start_positions = [idx for idx in (raw.find("{"), raw.find("[")) if idx != -1]
+    if not start_positions:
+        return []
+
+    fragments: list[str] = []
+    for start in sorted(start_positions):
+        opening = raw[start]
+        closing = "}" if opening == "{" else "]"
+        depth = 0
+        in_string = False
+        escaped = False
+        for end in range(start, len(raw)):
+            char = raw[end]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+                continue
+            if char == '"':
+                in_string = True
+            elif char == opening:
+                depth += 1
+            elif char == closing:
+                depth -= 1
+                if depth == 0:
+                    fragments.append(raw[start : end + 1])
+                    break
+    return fragments
 
 
 def _convert_tool(tool: Tool) -> ToolParam:
