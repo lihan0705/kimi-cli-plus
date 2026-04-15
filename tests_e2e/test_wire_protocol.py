@@ -99,7 +99,8 @@ def test_initialize_handshake(tmp_path) -> None:
                             "name": "skill:skill-creator",
                             "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.",
                             "aliases": [],
-                        }],
+                        },
+                    ],
                     "capabilities": {"supports_question": True},
                 }
             }
@@ -195,7 +196,8 @@ def test_initialize_external_tool_conflict(tmp_path) -> None:
                             "name": "skill:skill-creator",
                             "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.",
                             "aliases": [],
-                        }],
+                        },
+                    ],
                     "external_tools": {
                         "accepted": [],
                         "rejected": [{"name": "Shell", "reason": "conflicts with builtin tool"}],

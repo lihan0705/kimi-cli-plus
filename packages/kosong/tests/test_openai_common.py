@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -66,11 +66,11 @@ def test_openai_legacy_normalizes_malformed_tool_call_arguments() -> None:
         ],
     )
 
-    converted = provider._convert_message(message)
+    converted = cast(Any, provider._convert_message(message))  # pyright: ignore[reportPrivateUsage]
     tool_calls = converted["tool_calls"]
     assert isinstance(tool_calls, list)
-    args = tool_calls[0]["function"]["arguments"]
-    assert json.loads(args) == {"command": "curl -k ... 2>&1"}
+    args = tool_calls[0]["function"]["arguments"]  # pyright: ignore[reportUnknownVariableType]
+    assert json.loads(args) == {"command": "curl -k ... 2>&1"}  # pyright: ignore[reportUnknownArgumentType]
 
 
 def test_openai_responses_normalizes_malformed_tool_call_arguments() -> None:
@@ -89,6 +89,6 @@ def test_openai_responses_normalizes_malformed_tool_call_arguments() -> None:
         ],
     )
 
-    converted = provider._convert_message(message)
+    converted = cast(Any, provider._convert_message(message))  # pyright: ignore[reportPrivateUsage]
     function_call = next(item for item in converted if item["type"] == "function_call")
-    assert json.loads(function_call["arguments"]) == {"command": "curl -k ... 2>&1"}
+    assert json.loads(function_call["arguments"]) == {"command": "curl -k ... 2>&1"}  # pyright: ignore[reportUnknownArgumentType]
