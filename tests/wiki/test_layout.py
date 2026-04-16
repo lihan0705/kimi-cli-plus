@@ -18,3 +18,9 @@ def test_ensure_wiki_dirs_creates_hermes_style_structure(tmp_path: Path, monkeyp
     assert (root / "concepts").is_dir()
     assert (root / "comparisons").is_dir()
     assert (root / "queries").is_dir()
+
+
+def test_get_wiki_root_expands_tilde(monkeypatch):
+    monkeypatch.setenv("KIMI_WIKI_ROOT", "~/custom/wiki")
+
+    assert get_wiki_root() == Path.home() / "custom" / "wiki"

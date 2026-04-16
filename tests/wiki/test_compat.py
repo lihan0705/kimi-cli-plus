@@ -20,6 +20,8 @@ def test_wiki_symbols_are_re_exported_through_knowledge():
 
 
 def test_source_type_compatibility_keeps_legacy_members():
+    assert KnowledgeSourceType.Session == "session"
+    assert KnowledgeSourceType.SESSION == "session"
     assert KnowledgeSourceType.File == "file"
     assert KnowledgeSourceType.Note == "note"
     assert KnowledgeSourceType.FILE == "file"
