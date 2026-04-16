@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from kimi_cli.wiki import (
+    RawSourceKind,
+    WikiPageKind,
+    WikiSourceRef,
+    ensure_wiki_dirs,
+    get_wiki_root,
+)
+
 from .converter import PDFConverter, SessionConverter, URLConverter
 from .log import LogManager
 from .models import (
@@ -25,13 +33,18 @@ __all__ = [
     "KBStore",
     "LogManager",
     "PDFConverter",
+    "RawSourceKind",
     "SearchResult",
     "SessionConverter",
     "SourceType",
     "TemporalType",
+    "WikiPageKind",
+    "WikiSourceRef",
     "URLConverter",
     "ensure_kb_dirs",
+    "ensure_wiki_dirs",
     "generate_slug",
     "get_document_dir",
     "get_kb_root",
+    "get_wiki_root",
 ]
