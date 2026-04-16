@@ -1,5 +1,7 @@
 from pathlib import Path
+from unittest.mock import patch
 
+from kimi_cli.knowledge.models import RawSessionRecord
 from kimi_cli.wiki.layout import ensure_wiki_dirs
 from kimi_cli.wiki.session_import import discover_legacy_sessions, import_session_file
 
@@ -51,6 +53,11 @@ def test_import_session_file_archives_raw_session(tmp_path: Path):
     assert archived.raw_path.parent.name == "sessions"
     assert archived.raw_path.suffix == ".jsonl"
     assert archived.raw_path.read_bytes() == raw_content
+    assert archived.metadata_path.name == "sess_001.metadata.json"
+    assert archived.metadata_path.exists()
+    assert RawSessionRecord.model_validate_json(
+        archived.metadata_path.read_text(encoding="utf-8")
+    ) == archived.metadata
 
 
 def test_imported_session_keeps_original_path_for_reimport_dedup(tmp_path: Path):
@@ -62,3 +69,46 @@ def test_imported_session_keeps_original_path_for_reimport_dedup(tmp_path: Path)
     archived = import_session_file(root, source, session_id="sess_002")
 
     assert archived.metadata.source.original_path == str(source)
+
+
+def test_import_session_file_is_idempotent_for_matching_reimport(tmp_path: Path):
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    source = tmp_path / "session.jsonl"
+    raw_content = b'{"role":"user","content":"same"}\n'
+    source.write_bytes(raw_content)
+
+    archived = import_session_file(root, source, session_id="sess_003")
+
+    with patch("pathlib.Path.write_bytes") as mock_write_bytes:
+        archived_again = import_session_file(root, source, session_id="sess_003")
+
+    assert archived_again.raw_path == archived.raw_path
+    assert archived_again.metadata == archived.metadata
+    assert archived_again.metadata_path == archived.metadata_path
+    mock_write_bytes.assert_not_called()
+    assert archived.raw_path.read_bytes() == raw_content
+
+
+def test_import_session_file_rejects_conflicting_reimport(tmp_path: Path):
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    source = tmp_path / "session.jsonl"
+    source.write_bytes(b'{"role":"user","content":"first"}\n')
+
+    archived = import_session_file(root, source, session_id="sess_004")
+
+    conflicting = tmp_path / "session-conflict.jsonl"
+    conflicting.write_bytes(b'{"role":"user","content":"second"}\n')
+
+    with patch("pathlib.Path.write_bytes") as mock_write_bytes:
+        try:
+            import_session_file(root, conflicting, session_id="sess_004")
+        except ValueError as err:
+            assert "sess_004" in str(err)
+        else:  # pragma: no cover
+            raise AssertionError("Expected ValueError for conflicting reimport")
+
+    mock_write_bytes.assert_not_called()
+    assert archived.raw_path.read_bytes() == b'{"role":"user","content":"first"}\n'
+    assert archived.metadata_path.exists()

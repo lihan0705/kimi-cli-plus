@@ -56,4 +56,6 @@ class SessionConverter:
     @staticmethod
     def convert_session_to_jsonl(messages: list[Message]) -> str:
         """Convert a list of messages to JSONL."""
-        return "\n".join(msg.model_dump_json(exclude_none=True) for msg in messages)
+        if not messages:
+            return ""
+        return "\n".join(msg.model_dump_json(exclude_none=True) for msg in messages) + "\n"
