@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from kimi_cli.wiki.models import WikiSourceRef
+
 
 class SourceType(StrEnum):
     Session = "session"
@@ -67,3 +69,7 @@ class SearchResult(BaseModel):
 
     metadata: DocumentMetadata
     snippet: str
+
+
+class RawSessionRecord(BaseModel):
+    source: WikiSourceRef
