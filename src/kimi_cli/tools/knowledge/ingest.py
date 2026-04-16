@@ -1,15 +1,14 @@
 from pathlib import Path
 from typing import override
-from urllib.parse import urlparse
 
 from kosong.tooling import CallableTool2, ToolReturnValue
 from pydantic import BaseModel, Field
 
-from kimi_cli.knowledge import PDFConverter, SourceType, URLConverter
 from kimi_cli.soul.agent import Runtime
 from kimi_cli.tools.utils import ToolResultBuilder, load_desc
 from kimi_cli.utils.logging import logger
-from kimi_cli.wiki import distill_source_to_page, ensure_wiki_dirs, get_wiki_root
+from kimi_cli.wiki import ensure_wiki_dirs, get_wiki_root
+from kimi_cli.wiki.ingest import WikiSourceLoadError, distill_source_to_page, load_source_material
 
 
 class Params(BaseModel):
@@ -33,50 +32,28 @@ class WikiIngest(CallableTool2[Params]):
         try:
             root = get_wiki_root()
             ensure_wiki_dirs(root)
+            material = load_source_material(source)
+        except WikiSourceLoadError as exc:
+            brief = (
+                "File read failed" if "read file" in str(exc).lower() else "Ingest source failed"
+            )
+            return builder.error(str(exc), brief=brief)
+        except Exception as e:
+            logger.exception("Failed to ingest content from {source}", source=source)
+            return builder.error(f"Ingestion failed: {e}", brief="Ingestion error")
 
-            if source.startswith(("http://", "https://")):
-                source_type = SourceType.URL
-                content = URLConverter.convert_url_to_md(source)
-                source_title = _source_title_from_url(source)
-                if not content:
-                    return builder.error(
-                        f"Failed to extract content from URL: {source}",
-                        brief="URL conversion failed",
-                    )
-            else:
-                path = Path(source).expanduser().resolve()
-                if not path.exists():
-                    return builder.error(f"File not found: {source}", brief="File not found")
-
-                source_type = SourceType.File
-                source_title = path.stem
-                if path.suffix.lower() == ".pdf":
-                    content = PDFConverter.convert_pdf_to_md(path)
-                else:
-                    try:
-                        content = path.read_text(encoding="utf-8")
-                    except Exception as e:
-                        return builder.error(
-                            f"Failed to read file {source}: {e}",
-                            brief="File read failed",
-                        )
-
-                if not content:
-                    return builder.error(
-                        f"Failed to extract content from file: {source}",
-                        brief="File conversion failed",
-                    )
-
+        try:
             result = distill_source_to_page(
                 root=root,
-                source_text=content,
-                source_title=source_title,
+                source_text=material.source_text,
+                source_title=material.source_title,
                 page_kind="concept",
-                page_slug=source_title,
+                page_slug=material.source_title,
+                source_identity=material.source_identity,
             )
 
             msg = (
-                f"Distilled {source_type.value} source into wiki page [[{result.page_slug}]]\n"
+                f"Distilled {material.source_kind} source into wiki page [[{result.page_slug}]]\n"
                 f"Page path: {result.page_path}\n"
                 f"Index updated: {result.index_path}\n"
                 f"Log updated: {root / 'log.md'}"
@@ -86,9 +63,3 @@ class WikiIngest(CallableTool2[Params]):
         except Exception as e:
             logger.exception("Failed to ingest content from {source}", source=source)
             return builder.error(f"Ingestion failed: {e}", brief="Ingestion error")
-
-
-def _source_title_from_url(source: str) -> str:
-    parsed = urlparse(source)
-    last_segment = parsed.path.rstrip("/").split("/")[-1]
-    return last_segment or parsed.netloc or "web-source"

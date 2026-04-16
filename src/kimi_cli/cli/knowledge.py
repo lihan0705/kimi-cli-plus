@@ -4,7 +4,6 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Annotated
-from urllib.parse import urlparse
 
 import typer
 from rich.console import Console
@@ -20,11 +19,9 @@ from kimi_cli.knowledge import (
     get_kb_root,
 )
 from kimi_cli.knowledge.compiler import compile_wiki_index
-from kimi_cli.knowledge.converter import PDFConverter, URLConverter
-from kimi_cli.knowledge.models import SourceType
 from kimi_cli.knowledge.paths import get_document_dir
 from kimi_cli.wiki import ensure_wiki_dirs, get_wiki_root
-from kimi_cli.wiki.ingest import distill_source_to_page
+from kimi_cli.wiki.ingest import WikiSourceLoadError, distill_source_to_page, load_source_material
 from kimi_cli.wiki.session_import import import_session_file
 
 cli = typer.Typer(help="Manage Knowledge Base (Wiki).")
@@ -149,37 +146,29 @@ def ingest(
     source: Annotated[str, typer.Argument(help="URL or local file path to ingest")],
 ):
     """Distill a URL or local file into a Markdown wiki page."""
-
     root = get_wiki_root()
     ensure_wiki_dirs(root)
-
-    if source.startswith(("http://", "https://")):
-        source_type = SourceType.URL
-        content = URLConverter.convert_url_to_md(source)
-        source_title = _source_title_from_url(source)
-    else:
-        path = Path(source).expanduser().resolve()
-        if not path.exists():
-            typer.echo(f"Error: File not found: {source}")
-            return
-        source_type = SourceType.File
-        source_title = path.stem
-        if path.suffix.lower() == ".pdf":
-            content = PDFConverter.convert_pdf_to_md(path)
-        else:
-            content = path.read_text(encoding="utf-8")
-
-    if not content:
-        typer.echo(f"Error: Failed to extract content from {source_type.value}.")
+    try:
+        material = load_source_material(source)
+    except WikiSourceLoadError as exc:
+        typer.echo(f"Error: {exc}")
+        return
+    except Exception as exc:  # pragma: no cover - unexpected failures
+        typer.echo(f"Error: Ingestion failed: {exc}")
         return
 
-    result = distill_source_to_page(
-        root=root,
-        source_text=content,
-        source_title=source_title,
-        page_kind="concept",
-        page_slug=source_title,
-    )
+    try:
+        result = distill_source_to_page(
+            root=root,
+            source_text=material.source_text,
+            source_title=material.source_title,
+            page_kind="concept",
+            page_slug=material.source_title,
+            source_identity=material.source_identity,
+        )
+    except Exception as exc:  # pragma: no cover - unexpected filesystem failures
+        typer.echo(f"Error: Ingestion failed: {exc}")
+        return
     typer.echo(f"Distilled source into wiki page: [[{result.page_slug}]]")
     typer.echo(f"Page path: {result.page_path}")
     typer.echo(f"Index updated at {result.index_path}")
@@ -371,9 +360,3 @@ def _edit_and_sync(doc: DocumentMetadata) -> None:
     if new_dir != doc_dir:
         typer.echo(f"Document promoted/moved to: {new_dir.relative_to(root)}")
     typer.echo("Sync complete.")
-
-
-def _source_title_from_url(source: str) -> str:
-    parsed = urlparse(source)
-    last_segment = parsed.path.rstrip("/").split("/")[-1]
-    return last_segment or parsed.netloc or "web-source"
