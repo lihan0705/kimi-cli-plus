@@ -7,7 +7,15 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from kimi_cli.wiki.models import RawSourceKind as SourceType
+
+class SourceType(StrEnum):
+    Session = "session"
+    SESSION = "session"
+    URL = "url"
+    File = "file"
+    FILE = "file"
+    Note = "note"
+    NOTE = "note"
 
 
 class DocumentStatus(StrEnum):
