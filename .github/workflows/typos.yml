@@ -1,10 +1,21 @@
 name: Typo checker
-on: [pull_request]
+on:
+  pull_request:
+    paths-ignore:
+      - "docs/zh/**" # If you want to skip Chinese docs for spell check, or just keep it simple
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   run:
     name: Spell Check with Typos
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
     - name: Checkout Actions Repository
       uses: actions/checkout@v4
