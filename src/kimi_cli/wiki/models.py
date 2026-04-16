@@ -4,7 +4,12 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
-from kimi_cli.knowledge.models import SourceType as RawSourceKind
+
+class RawSourceKind(StrEnum):
+    SESSION = "session"
+    URL = "url"
+    FILE = "file"
+    NOTE = "note"
 
 
 class WikiPageKind(StrEnum):

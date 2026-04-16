@@ -8,7 +8,7 @@ from .models import WIKI_PAGE_DIRECTORIES
 
 def get_wiki_root() -> Path:
     env_root = os.getenv("KIMI_WIKI_ROOT")
-    return Path(env_root) if env_root else Path.home() / ".kimi" / "wiki"
+    return Path(env_root).expanduser() if env_root else Path.home() / ".kimi" / "wiki"
 
 
 def ensure_wiki_dirs(root: Path) -> None:
