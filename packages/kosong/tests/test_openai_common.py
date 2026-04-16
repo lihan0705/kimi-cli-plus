@@ -1,11 +1,14 @@
 import asyncio
-from typing import Any
+import json
+from typing import Any, cast
 
 import httpx
 import pytest
 
 from kosong.chat_provider import APIConnectionError, openai_common
 from kosong.contrib.chat_provider.openai_legacy import OpenAILegacy
+from kosong.contrib.chat_provider.openai_responses import OpenAIResponses
+from kosong.message import Message, ToolCall
 
 
 def test_create_openai_client_does_not_inject_max_retries(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -45,3 +48,47 @@ async def test_retry_recovery_does_not_close_shared_http_client() -> None:
     assert provider.client._client is http_client  # pyright: ignore[reportPrivateUsage]
     assert http_client.is_closed is False
     await http_client.aclose()
+
+
+def test_openai_legacy_normalizes_malformed_tool_call_arguments() -> None:
+    provider = OpenAILegacy(model="gpt-4.1", api_key="test-key", stream=False)
+    message = Message(
+        role="assistant",
+        content="",
+        tool_calls=[
+            ToolCall(
+                id="call_1",
+                function=ToolCall.FunctionBody(
+                    name="shell",
+                    arguments='{"command":"curl -k ... 2>&1"{}}',
+                ),
+            )
+        ],
+    )
+
+    converted = cast(Any, provider._convert_message(message))  # pyright: ignore[reportPrivateUsage]
+    tool_calls = converted["tool_calls"]
+    assert isinstance(tool_calls, list)
+    args = tool_calls[0]["function"]["arguments"]  # pyright: ignore[reportUnknownVariableType]
+    assert json.loads(args) == {"command": "curl -k ... 2>&1"}  # pyright: ignore[reportUnknownArgumentType]
+
+
+def test_openai_responses_normalizes_malformed_tool_call_arguments() -> None:
+    provider = OpenAIResponses(model="gpt-4.1", api_key="test-key", stream=False)
+    message = Message(
+        role="assistant",
+        content="",
+        tool_calls=[
+            ToolCall(
+                id="call_1",
+                function=ToolCall.FunctionBody(
+                    name="shell",
+                    arguments='{"command":"curl -k ... 2>&1"{}}',
+                ),
+            )
+        ],
+    )
+
+    converted = cast(Any, provider._convert_message(message))  # pyright: ignore[reportPrivateUsage]
+    function_call = next(item for item in converted if item["type"] == "function_call")
+    assert json.loads(function_call["arguments"]) == {"command": "curl -k ... 2>&1"}  # pyright: ignore[reportUnknownArgumentType]

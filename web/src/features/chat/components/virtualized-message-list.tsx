@@ -26,7 +26,11 @@ import {
   useState,
   type ComponentPropsWithoutRef,
 } from "react";
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import {
+  Virtuoso,
+  type StateSnapshot,
+  type VirtuosoHandle,
+} from "react-virtuoso";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -34,6 +38,7 @@ import { Button } from "@/components/ui/button";
 export type VirtualizedMessageListProps = {
   messages: LiveMessage[];
   conversationKey: string;
+  restoreStateFrom?: StateSnapshot | null;
   pendingApprovalMap: Record<string, boolean>;
   onApprovalAction?: AssistantApprovalHandler;
   canRespondToApproval: boolean;
@@ -53,6 +58,7 @@ export type VirtualizedMessageListProps = {
 export type VirtualizedMessageListHandle = {
   scrollToIndex: (index: number, behavior?: "auto" | "smooth") => void;
   scrollToBottom: () => void;
+  getStateSnapshot: () => Promise<StateSnapshot | null>;
 };
 
 type ConversationListItem = {
@@ -158,6 +164,7 @@ function VirtualizedMessageListComponent(
   {
     messages,
     conversationKey,
+    restoreStateFrom,
     pendingApprovalMap,
     onApprovalAction,
     canRespondToApproval,
@@ -261,6 +268,14 @@ function VirtualizedMessageListComponent(
           });
         }
       },
+      getStateSnapshot: () =>
+        new Promise((resolve) => {
+          if (!virtuosoRef.current) {
+            resolve(null);
+            return;
+          }
+          virtuosoRef.current.getState((state) => resolve(state));
+        }),
     }),
     [listItems.length],
   );
@@ -273,6 +288,7 @@ function VirtualizedMessageListComponent(
       className="h-full"
       scrollerRef={handleScrollerRef}
       followOutput={handleFollowOutput}
+      restoreStateFrom={restoreStateFrom ?? undefined}
       defaultItemHeight={160}
       increaseViewportBy={{ top: 400, bottom: 400 }}
       overscan={200}

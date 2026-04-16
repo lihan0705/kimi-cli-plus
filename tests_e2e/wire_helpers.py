@@ -6,6 +6,7 @@ import os
 import queue
 import shlex
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -16,7 +17,7 @@ from typing import IO, Any
 
 TRACE_ENV = "KIMI_TEST_TRACE"
 WIRE_COMMAND_ENV = "KIMI_E2E_WIRE_CMD"
-DEFAULT_TIMEOUT = 5.0
+DEFAULT_TIMEOUT = 30.0
 _PATH_REPLACEMENTS: dict[str, str] = {}
 
 
@@ -49,6 +50,7 @@ def make_env(home_dir: Path) -> dict[str, str]:
     env["HOME"] = str(home_dir)
     env["USERPROFILE"] = str(home_dir)
     env["KIMI_SHARE_DIR"] = str(share_dir(home_dir))
+    env["PYTHONUTF8"] = "1"
     return env
 
 
@@ -266,6 +268,12 @@ def start_wire(
         cmd.extend(["--config", config_text])
     if mcp_config_path is not None:
         cmd.extend(["--mcp-config-file", str(mcp_config_path)])
+    if skills_dir is None:
+        # Use a non-existent directory to ensure only builtin skills are loaded.
+        # This prevents picking up skills from ~/.config/agents/skills or other default roots.
+        skills_dir = home_dir / "empty_skills"
+        skills_dir.mkdir(exist_ok=True)
+
     if skills_dir is not None:
         cmd.extend(["--skills-dir", str(skills_dir)])
     if agent_file is not None:
@@ -510,8 +518,10 @@ def base_command() -> list[str]:
     override = os.getenv(WIRE_COMMAND_ENV)
     if override is not None:
         override = override.strip()
-    parts = shlex.split(override, posix=os.name != "nt") if override else ["uv", "run", "kimi"]
-    return [part for part in parts if part != "--wire"]
+    if override:
+        parts = shlex.split(override, posix=os.name != "nt")
+        return [part for part in parts if part != "--wire"]
+    return [sys.executable, "-m", "kimi_cli.cli"]
 
 
 def _wire_base_command() -> list[str]:

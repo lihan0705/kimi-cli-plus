@@ -75,33 +75,39 @@ async def mock_http_server() -> AsyncIterator[MockServerFactory]:
             await runner.cleanup()
 
 
-async def test_fetch_url_basic_functionality(fetch_url_tool: FetchURL) -> None:
+async def test_fetch_url_basic_functionality(
+    fetch_url_tool: FetchURL, mock_http_server: MockServerFactory
+) -> None:
     """Test basic WebFetch functionality."""
-    # Test with a reliable website that has content
-    test_url = "https://github.com/MoonshotAI/Moonlight/issues/4"
+    # Test with a mocked HTML content
+    html_content = """
+<html>
+<head>
+    <title>Test Page Title</title>
+    <meta name="author" content="Test Author">
+    <meta name="description" content="Test Description">
+</head>
+<body>
+    <h1>Main Heading</h1>
+    <p>This is a test paragraph with some content to extract.</p>
+</body>
+</html>
+"""
+    test_url = await mock_http_server(html_content)
 
     result = await fetch_url_tool(Params(url=test_url))
 
     assert not result.is_error
+    # Trafilatura output with metadata
     assert result.output == snapshot(
         """\
 ---
-title: Typo: adamw vs adamW · Issue #4 · MoonshotAI/Moonlight
-author: MoonshotAI
-url: https://github.com/MoonshotAI/Moonlight/issues/4
-hostname: github.com
-description: The default parameter value for optimizer should probably be adamw instead of adamW according to how get_optimizer is written.
-sitename: GitHub
-date: 2025-02-23
-categories: ['issue:2873381615']
+title: Main Heading
+author: Test Author
+description: Test Description
 ---
-The default parameter value for `optimizer` should probably be `adamw` instead of `adamW` according to how `get_optimizer` is written.
-The default parameter value for
-optimizer
-should probably beadamw
-instead ofadamW
-according to howget_optimizer
-is written.\
+Main Heading
+This is a test paragraph with some content to extract.\
 """
     )
 
@@ -117,11 +123,12 @@ async def test_fetch_url_invalid_url(fetch_url_tool: FetchURL) -> None:
     assert "Failed to fetch URL due to network error:" in result.message
 
 
-async def test_fetch_url_404_url(fetch_url_tool: FetchURL) -> None:
+async def test_fetch_url_404_url(
+    fetch_url_tool: FetchURL, mock_http_server: MockServerFactory
+) -> None:
     """Test fetching from a URL that returns 404."""
-    result = await fetch_url_tool(
-        Params(url="https://github.com/MoonshotAI/non-existing-repo/issues/1")
-    )
+    test_url = await mock_http_server("Not Found", status=404)
+    result = await fetch_url_tool(Params(url=test_url))
 
     # Should fail with HTTP error
     assert result.is_error
