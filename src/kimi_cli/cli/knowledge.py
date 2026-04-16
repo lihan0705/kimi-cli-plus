@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
+from urllib.parse import urlparse
 
 import typer
 from rich.console import Console
@@ -9,12 +12,20 @@ from rich.table import Table
 
 from kimi_cli.knowledge import (
     Category,
+    DocumentMetadata,
     DocumentStatus,
     KBStore,
     ensure_kb_dirs,
+    generate_slug,
     get_kb_root,
 )
 from kimi_cli.knowledge.compiler import compile_wiki_index
+from kimi_cli.knowledge.converter import PDFConverter, URLConverter
+from kimi_cli.knowledge.models import SourceType
+from kimi_cli.knowledge.paths import get_document_dir
+from kimi_cli.wiki import ensure_wiki_dirs, get_wiki_root
+from kimi_cli.wiki.ingest import distill_source_to_page
+from kimi_cli.wiki.session_import import import_session_file
 
 cli = typer.Typer(help="Manage Knowledge Base (Wiki).")
 
@@ -56,10 +67,10 @@ def status():
 @cli.command("list")
 def list_docs(
     category: Annotated[
-        Optional[Category], typer.Option("--category", "-c", help="Filter by category")
+        Category | None, typer.Option("--category", "-c", help="Filter by category")
     ] = None,
     status: Annotated[
-        Optional[DocumentStatus], typer.Option("--status", "-s", help="Filter by status")
+        DocumentStatus | None, typer.Option("--status", "-s", help="Filter by status")
     ] = None,
 ):
     """List documents in the Knowledge Base."""
@@ -96,11 +107,16 @@ def search(
         typer.echo("No documents found matching your query.")
         return
 
-    console = Console()
     for res in results:
         typer.echo("-" * 40)
-        typer.echo(f"ID: [cyan]{str(res.metadata.id)[:8]}[/cyan] | Title: [bold white]{res.metadata.title}[/bold white]")
-        typer.echo(f"Category: [green]{res.metadata.category.value}[/green] | Subcategory: {res.metadata.subcategory}")
+        typer.echo(
+            f"ID: [cyan]{str(res.metadata.id)[:8]}[/cyan] | "
+            f"Title: [bold white]{res.metadata.title}[/bold white]"
+        )
+        typer.echo(
+            f"Category: [green]{res.metadata.category.value}[/green] | "
+            f"Subcategory: {res.metadata.subcategory}"
+        )
         typer.echo(f"Snippet: {res.snippet}")
     typer.echo("-" * 40)
 
@@ -132,68 +148,71 @@ def index():
 def ingest(
     source: Annotated[str, typer.Argument(help="URL or local file path to ingest")],
 ):
-    """Ingest a URL or local file into the Knowledge Base."""
-    from kimi_cli.app import KimiCLI
-    from kimi_cli.knowledge.ingest import IngestPipeline
-    from kimi_cli.knowledge.converter import URLConverter, PDFConverter
-    from kimi_cli.knowledge.log import LogManager
-    from kimi_cli.knowledge.models import SourceType
-    import asyncio
+    """Distill a URL or local file into a Markdown wiki page."""
 
-    async def _run():
-        root = get_kb_root()
-        ensure_kb_dirs(root)
-        
-        # We need a chat provider. Use KimiCLI to load the default one.
-        kimi = KimiCLI.create()
-        if not kimi.runtime.llm:
-            typer.echo("Error: No LLM configured.")
+    root = get_wiki_root()
+    ensure_wiki_dirs(root)
+
+    if source.startswith(("http://", "https://")):
+        source_type = SourceType.URL
+        content = URLConverter.convert_url_to_md(source)
+        source_title = _source_title_from_url(source)
+    else:
+        path = Path(source).expanduser().resolve()
+        if not path.exists():
+            typer.echo(f"Error: File not found: {source}")
             return
-
-        # 1. Convert
-        if source.startswith(("http://", "https://")):
-            source_type = SourceType.URL
-            content = URLConverter.convert_url_to_md(source)
+        source_type = SourceType.File
+        source_title = path.stem
+        if path.suffix.lower() == ".pdf":
+            content = PDFConverter.convert_pdf_to_md(path)
         else:
-            path = Path(source).expanduser().resolve()
-            if not path.exists():
-                typer.echo(f"Error: File not found: {source}")
-                return
-            source_type = SourceType.File
-            if path.suffix.lower() == ".pdf":
-                content = PDFConverter.convert_pdf_to_md(path)
-            else:
-                content = path.read_text(encoding="utf-8")
+            content = path.read_text(encoding="utf-8")
 
-        if not content:
-            typer.echo("Error: Failed to extract content.")
-            return
+    if not content:
+        typer.echo(f"Error: Failed to extract content from {source_type.value}.")
+        return
 
-        # 2. Pipeline
-        db_path = root / "knowledge.db"
-        kb_store = KBStore(db_path)
-        log_manager = LogManager(root)
-        
-        pipeline = IngestPipeline(
-            root=root,
-            chat_provider=kimi.runtime.llm.chat_provider,
-            kb_store=kb_store,
-            log_manager=log_manager
-        )
+    result = distill_source_to_page(
+        root=root,
+        source_text=content,
+        source_title=source_title,
+        page_kind="concept",
+        page_slug=source_title,
+    )
+    typer.echo(f"Distilled source into wiki page: [[{result.page_slug}]]")
+    typer.echo(f"Page path: {result.page_path}")
+    typer.echo(f"Index updated at {result.index_path}")
+    typer.echo(f"Log updated at {root / 'log.md'}")
 
-        typer.echo(f"Ingesting {source_type} content...")
-        metadata = await pipeline.run(content, source_type, source)
-        
-        typer.echo(f"Successfully ingested: {metadata.title}")
-        typer.echo(f"ID: {metadata.id}")
-        typer.echo(f"Category: {metadata.category}")
-        typer.echo(f"Status: {metadata.status}")
-        
-        # Recompile index
-        compile_wiki_index(root)
-        typer.echo(f"Index updated at {root}/index.md")
 
-    asyncio.run(_run())
+@cli.command("orient")
+def orient():
+    """Print the active wiki root and core files."""
+    root = get_wiki_root()
+    ensure_wiki_dirs(root)
+    typer.echo(f"Wiki root: {root}")
+    typer.echo(f"Index: {root / 'index.md'}")
+    typer.echo(f"Log: {root / 'log.md'}")
+    for name in ("entities", "concepts", "comparisons", "queries", "raw/sessions", "raw/sources"):
+        typer.echo(f"- {root / name}")
+
+
+@cli.command("import-session")
+def import_session(
+    source: Annotated[
+        str, typer.Argument(help="Session JSONL file to archive into the wiki raw store")
+    ],
+    session_id: Annotated[
+        str, typer.Option("--session-id", help="Stable session id to archive under")
+    ],
+):
+    """Archive a raw session file into the wiki filesystem store."""
+    root = get_wiki_root()
+    ensure_wiki_dirs(root)
+    archived = import_session_file(root, Path(source), session_id=session_id)
+    typer.echo(f"Archived session to {archived.raw_path}")
+    typer.echo(f"Metadata written to {archived.metadata_path}")
 
 
 @cli.command("graph")
@@ -215,7 +234,10 @@ def graph(
         return
 
     console = Console()
-    console.print(f"[bold magenta]Connections for:[/bold magenta] [cyan]{str(target_doc.id)[:8]}[/cyan] [white]{target_doc.title}[/white]")
+    console.print(
+        f"[bold magenta]Connections for:[/bold magenta] "
+        f"[cyan]{str(target_doc.id)[:8]}[/cyan] [white]{target_doc.title}[/white]"
+    )
     console.print("-" * 50)
 
     # 1. Outbound Links
@@ -264,7 +286,7 @@ def review():
     table.add_column("Category", style="green")
     table.add_column("Created At", style="dim")
 
-    for i, doc in enumerate(docs):
+    for doc in docs:
         table.add_row(
             str(doc.id)[:8],
             doc.title,
@@ -313,12 +335,8 @@ def edit(
     _edit_and_sync(target_doc)
 
 
-def _edit_and_sync(doc):
+def _edit_and_sync(doc: DocumentMetadata) -> None:
     """Helper to open editor and sync metadata."""
-    import os
-    import subprocess
-    from kimi_cli.knowledge.paths import get_document_dir, get_kb_root
-    
     root = get_kb_root()
     # Need to find the current physical path (could be in raw/ or knowledge/)
     slug = generate_slug(doc.title, doc.id)
@@ -353,3 +371,9 @@ def _edit_and_sync(doc):
     if new_dir != doc_dir:
         typer.echo(f"Document promoted/moved to: {new_dir.relative_to(root)}")
     typer.echo("Sync complete.")
+
+
+def _source_title_from_url(source: str) -> str:
+    parsed = urlparse(source)
+    last_segment = parsed.path.rstrip("/").split("/")[-1]
+    return last_segment or parsed.netloc or "web-source"

@@ -1,22 +1,15 @@
 from pathlib import Path
 from typing import override
+from urllib.parse import urlparse
 
 from kosong.tooling import CallableTool2, ToolReturnValue
 from pydantic import BaseModel, Field
 
-from kimi_cli.knowledge import (
-    KBStore,
-    LogManager,
-    PDFConverter,
-    SourceType,
-    URLConverter,
-    ensure_kb_dirs,
-    get_kb_root,
-)
-from kimi_cli.knowledge.ingest import IngestPipeline
+from kimi_cli.knowledge import PDFConverter, SourceType, URLConverter
 from kimi_cli.soul.agent import Runtime
 from kimi_cli.tools.utils import ToolResultBuilder, load_desc
 from kimi_cli.utils.logging import logger
+from kimi_cli.wiki import distill_source_to_page, ensure_wiki_dirs, get_wiki_root
 
 
 class Params(BaseModel):
@@ -38,13 +31,13 @@ class WikiIngest(CallableTool2[Params]):
         source = params.source
 
         try:
-            root = get_kb_root()
-            ensure_kb_dirs(root)
+            root = get_wiki_root()
+            ensure_wiki_dirs(root)
 
-            # 1. Determine source type and content
             if source.startswith(("http://", "https://")):
                 source_type = SourceType.URL
                 content = URLConverter.convert_url_to_md(source)
+                source_title = _source_title_from_url(source)
                 if not content:
                     return builder.error(
                         f"Failed to extract content from URL: {source}",
@@ -56,10 +49,10 @@ class WikiIngest(CallableTool2[Params]):
                     return builder.error(f"File not found: {source}", brief="File not found")
 
                 source_type = SourceType.File
+                source_title = path.stem
                 if path.suffix.lower() == ".pdf":
                     content = PDFConverter.convert_pdf_to_md(path)
                 else:
-                    # Assume text/markdown for other files
                     try:
                         content = path.read_text(encoding="utf-8")
                     except Exception as e:
@@ -74,31 +67,28 @@ class WikiIngest(CallableTool2[Params]):
                         brief="File conversion failed",
                     )
 
-            # 2. Initialize Pipeline
-            db_path = root / "knowledge.db"
-            kb_store = KBStore(db_path)
-            log_manager = LogManager(root)
-
-            if not self._runtime.llm:
-                return builder.error("No LLM configured for ingestion.", brief="LLM not configured")
-
-            pipeline = IngestPipeline(
+            result = distill_source_to_page(
                 root=root,
-                chat_provider=self._runtime.llm.chat_provider,
-                kb_store=kb_store,
-                log_manager=log_manager
+                source_text=content,
+                source_title=source_title,
+                page_kind="concept",
+                page_slug=source_title,
             )
-
-            # 3. Run Pipeline
-            metadata = await pipeline.run(content, source_type, source)
 
             msg = (
-                f"Successfully ingested document: {metadata.title} (ID: {metadata.id})\n"
-                f"Category: {metadata.category}\n"
-                f"Status: {metadata.status}"
+                f"Distilled {source_type.value} source into wiki page [[{result.page_slug}]]\n"
+                f"Page path: {result.page_path}\n"
+                f"Index updated: {result.index_path}\n"
+                f"Log updated: {root / 'log.md'}"
             )
-            return builder.ok(msg, brief="Ingestion successful")
+            return builder.ok(msg, brief="Wiki page written")
 
         except Exception as e:
             logger.exception("Failed to ingest content from {source}", source=source)
             return builder.error(f"Ingestion failed: {e}", brief="Ingestion error")
+
+
+def _source_title_from_url(source: str) -> str:
+    parsed = urlparse(source)
+    last_segment = parsed.path.rstrip("/").split("/")[-1]
+    return last_segment or parsed.netloc or "web-source"
