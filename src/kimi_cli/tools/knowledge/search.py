@@ -47,7 +47,7 @@ class WikiSearch(CallableTool2[Params]):
             if not results:
                 return builder.ok(f"No results found for query: '{query}'", brief="No results")
 
-            output = []
+            output: list[str] = []
             for res in results:
                 meta = res.metadata
                 snippet = res.snippet.replace("\n", " ")

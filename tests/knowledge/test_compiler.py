@@ -1,22 +1,40 @@
-import pytest
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
-from datetime import datetime, timedelta
-from kimi_cli.knowledge.models import DocumentMetadata, Category, DocumentStatus, SourceType, TemporalType
-from kimi_cli.knowledge.compiler import compile_wiki_index
 
-def create_document_on_disk(root: Path, metadata: DocumentMetadata, content: str, is_raw: bool = False):
+import pytest
+
+from kimi_cli.knowledge.compiler import compile_wiki_index
+from kimi_cli.knowledge.models import (
+    Category,
+    DocumentMetadata,
+    DocumentStatus,
+    SourceType,
+    TemporalType,
+)
+
+
+def create_document_on_disk(
+    root: Path, metadata: DocumentMetadata, content: str, is_raw: bool = False
+):
     if is_raw:
         doc_dir = root / "raw" / str(metadata.id)
     else:
-        doc_dir = root / "knowledge" / metadata.category.value / metadata.subcategory / f"doc_{str(metadata.id)[:8]}"
-    
+        doc_dir = (
+            root
+            / "knowledge"
+            / metadata.category.value
+            / metadata.subcategory
+            / f"doc_{str(metadata.id)[:8]}"
+        )
+
     doc_dir.mkdir(parents=True, exist_ok=True)
     with open(doc_dir / "metadata.json", "w") as f:
         f.write(metadata.model_dump_json())
     with open(doc_dir / "document.md", "w") as f:
         f.write(content)
     return doc_dir
+
 
 @pytest.fixture
 def kb_root(tmp_path):
@@ -26,6 +44,7 @@ def kb_root(tmp_path):
     (root / "knowledge").mkdir()
     return root
 
+
 def test_compile_wiki_index_empty(kb_root):
     compile_wiki_index(kb_root)
     index_path = kb_root / "index.md"
@@ -33,6 +52,7 @@ def test_compile_wiki_index_empty(kb_root):
     content = index_path.read_text()
     assert "# Knowledge Base Index" in content
     assert "No documents found." in content
+
 
 def test_compile_wiki_index_basic(kb_root):
     # Create documents in different categories and subcategories
@@ -49,7 +69,7 @@ def test_compile_wiki_index_basic(kb_root):
         temporal_type=TemporalType.Evergreen,
         source_type=SourceType.Note,
         original_source="manual",
-        created_at=datetime.now() - timedelta(days=2)
+        created_at=datetime.now() - timedelta(days=2),
     )
     create_document_on_disk(kb_root, doc1, "Content 1")
 
@@ -66,7 +86,7 @@ def test_compile_wiki_index_basic(kb_root):
         temporal_type=TemporalType.Evergreen,
         source_type=SourceType.Note,
         original_source="manual",
-        created_at=datetime.now() - timedelta(days=1)
+        created_at=datetime.now() - timedelta(days=1),
     )
     create_document_on_disk(kb_root, doc2, "Content 2")
 
@@ -88,6 +108,7 @@ def test_compile_wiki_index_basic(kb_root):
     assert "### Setup" in content
     assert f"- [{str(doc2.id)[:8]}] **HowTo 1**: Description 2 (Tags: tag3)" in content
 
+
 def test_compile_wiki_index_recently_added_limit(kb_root):
     # Create 6 documents
     docs = []
@@ -104,7 +125,7 @@ def test_compile_wiki_index_recently_added_limit(kb_root):
             temporal_type=TemporalType.Evergreen,
             source_type=SourceType.Note,
             original_source="manual",
-            created_at=datetime.now() - timedelta(minutes=i)
+            created_at=datetime.now() - timedelta(minutes=i),
         )
         create_document_on_disk(kb_root, doc, f"Content {i}")
         docs.append(doc)

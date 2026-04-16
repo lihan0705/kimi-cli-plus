@@ -32,7 +32,7 @@ class PDFConverter:
         """Convert a PDF to markdown using pypdf."""
         try:
             reader = pypdf.PdfReader(path)
-            pages_text = []
+            pages_text: list[str] = []
             for page in reader.pages:
                 text = page.extract_text()
                 if text:
@@ -47,7 +47,7 @@ class SessionConverter:
     @staticmethod
     def convert_session_to_md(messages: list[Message]) -> str:
         """Convert a list of messages to markdown."""
-        formatted_messages = []
+        formatted_messages: list[str] = []
         for msg in messages:
             content = msg.extract_text()
             formatted_messages.append(f"### {msg.role}\n{content}")

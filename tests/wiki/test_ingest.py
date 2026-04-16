@@ -18,9 +18,7 @@ def test_distill_source_to_concept_page_writes_page_index_and_log(tmp_path: Path
 
     assert result.page_path.exists()
     page_text = result.page_path.read_text(encoding="utf-8")
-    assert page_text.startswith(
-        "---\nsource_title: rag-note\nsource_identity: "
-    )
+    assert page_text.startswith("---\nsource_title: rag-note\nsource_identity: ")
     assert f"page_slug: {result.page_slug}\n" in page_text
     assert result.page_slug.startswith("retrieval-augmented-generation--")
     assert f"[[{result.page_slug}]]" in (root / "index.md").read_text(encoding="utf-8")

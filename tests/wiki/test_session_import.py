@@ -55,9 +55,10 @@ def test_import_session_file_archives_raw_session(tmp_path: Path):
     assert archived.raw_path.read_bytes() == raw_content
     assert archived.metadata_path.name == "sess_001.metadata.json"
     assert archived.metadata_path.exists()
-    assert RawSessionRecord.model_validate_json(
-        archived.metadata_path.read_text(encoding="utf-8")
-    ) == archived.metadata
+    assert (
+        RawSessionRecord.model_validate_json(archived.metadata_path.read_text(encoding="utf-8"))
+        == archived.metadata
+    )
 
 
 def test_imported_session_keeps_original_path_for_reimport_dedup(tmp_path: Path):

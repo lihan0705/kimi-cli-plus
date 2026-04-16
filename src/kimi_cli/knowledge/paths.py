@@ -2,7 +2,6 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
 from kimi_cli.knowledge.models import Category, DocumentStatus
@@ -10,8 +9,8 @@ from kimi_cli.knowledge.models import Category, DocumentStatus
 
 def get_kb_root() -> Path:
     """Get the root directory for the knowledge base.
-    
-    Defaults to ~/.kimi/knowledge/, but can be overridden by the KIMI_KB_ROOT 
+
+    Defaults to ~/.kimi/knowledge/, but can be overridden by the KIMI_KB_ROOT
     environment variable.
     """
     env_root = os.getenv("KIMI_KB_ROOT")
@@ -22,7 +21,7 @@ def get_kb_root() -> Path:
 
 def ensure_kb_dirs(root: Path) -> None:
     """Ensure all required knowledge base directories exist.
-    
+
     Creates raw/, knowledge/, wiki/, and log_archive/ under root.
     Also creates category-specific subdirectories under knowledge/.
     """
@@ -62,11 +61,11 @@ def get_document_dir(
     root: Path,
     slug: str,
     status: DocumentStatus,
-    category: Optional[Category] = None,
-    subcategory: Optional[str] = None,
+    category: Category | None = None,
+    subcategory: str | None = None,
 ) -> Path:
     """Get the correct directory path for a document based on its status and category.
-    
+
     Each document lives in its own directory named after the slug.
     """
     if status == DocumentStatus.raw:

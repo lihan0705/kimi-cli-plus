@@ -1,7 +1,5 @@
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
 
@@ -18,11 +16,11 @@ class LogManager:
             self.root.mkdir(parents=True, exist_ok=True)
             self.log_file.write_text("# Knowledge Base Activity Log\n\n")
 
-    def _get_last_entry_date(self) -> Optional[datetime]:
+    def _get_last_entry_date(self) -> datetime | None:
         """Get the date of the last entry in the log file, or file mtime if no entries."""
         if not self.log_file.exists():
             return None
-            
+
         content = self.log_file.read_text().splitlines()
         # Look for the last line starting with "- ["
         for line in reversed(content):
@@ -33,7 +31,7 @@ class LogManager:
                     return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
                 except ValueError:
                     continue
-        
+
         # Fallback to file modification time
         return datetime.fromtimestamp(self.log_file.stat().st_mtime)
 
@@ -59,14 +57,14 @@ class LogManager:
         year_str = str(iso_year)
         month_str = last_date.strftime("%m")
         week_str = f"{iso_week:02d}"
-        
+
         archive_path = self.archive_dir / year_str / month_str / f"week-{week_str}.md"
         archive_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Move current log.md to archive
         if self.log_file.exists():
-            # If multiple rotations happen (e.g. system down for weeks), 
-            # we might want to append if the archive already exists, 
+            # If multiple rotations happen (e.g. system down for weeks),
+            # we might want to append if the archive already exists,
             # but usually it won't if we rotate correctly.
             # Using rename for simplicity as per "Move log.md"
             if archive_path.exists():
@@ -76,17 +74,17 @@ class LogManager:
                 self.log_file.unlink()
             else:
                 self.log_file.rename(archive_path)
-        
+
         # Start fresh
         self._ensure_log_file()
 
-    def append(self, action: str, title: str, doc_id: Optional[UUID] = None):
+    def append(self, action: str, title: str, doc_id: UUID | None = None):
         """Append an action to the log, rotating if necessary."""
         self.check_rotation()
-        
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         doc_id_str = str(doc_id) if doc_id else ""
         line = f"- [{timestamp}] {action}: {title} ({doc_id_str})\n"
-        
+
         with self.log_file.open("a") as f:
             f.write(line)

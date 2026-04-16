@@ -1,8 +1,5 @@
-import os
 from pathlib import Path
 from uuid import uuid4
-
-import pytest
 
 from kimi_cli.knowledge.models import Category, DocumentStatus
 from kimi_cli.knowledge.paths import (
@@ -57,9 +54,7 @@ def test_get_document_dir_classified(tmp_path):
     root = tmp_path
     slug = "20231027_test_12345678"
     # For classified status, it should be in knowledge/<category>/<subcategory>/
-    path = get_document_dir(
-        root, slug, DocumentStatus.classified, Category.Concept, "Sub Category"
-    )
+    path = get_document_dir(root, slug, DocumentStatus.classified, Category.Concept, "Sub Category")
     assert path == root / "knowledge" / "concept" / "sub-category" / slug
 
 

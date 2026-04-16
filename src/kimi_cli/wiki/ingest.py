@@ -240,6 +240,8 @@ def _build_summary_lines(paragraphs: list[str]) -> list[str]:
     if not sentences:
         return ["No source content provided."]
     return sentences
+
+
 def _truncate_text(value: str, *, limit: int) -> str:
     if len(value) <= limit:
         return value

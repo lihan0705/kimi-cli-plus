@@ -127,7 +127,7 @@ def sync():
 
     docs = store.list_documents()
     typer.echo(f"Synchronization complete. Total documents: {len(docs)}")
-    
+
     # Recompile index
     compile_wiki_index(root)
     typer.echo(f"Index updated at {root}/index.md")
@@ -217,7 +217,7 @@ def graph(
         if str(doc.id).startswith(doc_id):
             target_doc = doc
             break
-    
+
     if not target_doc:
         typer.echo(f"Error: No document found with ID '{doc_id}'")
         return
@@ -248,9 +248,9 @@ def graph(
     # 3. Related (by Tags - filtered to remove direct links)
     related_results = store.get_related_documents(target_doc.id)
     linked_ids = {str(d.id) for d in outbound} | {str(d.id) for d in inbound}
-    
+
     tag_related = [(d, s) for d, s in related_results if str(d.id) not in linked_ids]
-    
+
     console.print("\n[bold yellow]Related (by Tags):[/bold yellow]")
     if not tag_related:
         console.print("  (None)")
@@ -284,9 +284,9 @@ def review():
         )
 
     console.print(table)
-    
+
     choice = typer.prompt("Enter the ID (short) of the document to review (or 'q' to quit)")
-    if choice.lower() == 'q':
+    if choice.lower() == "q":
         return
 
     # Find the document
@@ -295,7 +295,7 @@ def review():
         if str(doc.id).startswith(choice):
             target_doc = doc
             break
-    
+
     if not target_doc:
         typer.echo(f"Error: No document found with ID starting with '{choice}'")
         return
@@ -316,7 +316,7 @@ def edit(
         if str(doc.id).startswith(doc_id):
             target_doc = doc
             break
-    
+
     if not target_doc:
         typer.echo(f"Error: No document found with ID '{doc_id}'")
         return
@@ -330,7 +330,7 @@ def _edit_and_sync(doc: DocumentMetadata) -> None:
     # Need to find the current physical path (could be in raw/ or knowledge/)
     slug = generate_slug(doc.title, doc.id)
     doc_dir = get_document_dir(root, slug, doc.status, doc.category, doc.subcategory)
-    
+
     # Fallback if get_document_dir fails to find it due to state mismatch
     if not doc_dir.exists():
         # Try raw/
@@ -349,14 +349,14 @@ def _edit_and_sync(doc: DocumentMetadata) -> None:
 
     file_to_edit = doc_dir / "document.md"
     editor = os.environ.get("EDITOR", "vim")
-    
+
     typer.echo(f"Opening {file_to_edit} in {editor}...")
     subprocess.call([editor, str(file_to_edit)])
-    
+
     # Sync after editing
     store = get_store()
     new_dir = store.sync_metadata_from_md(doc_dir)
-    
+
     if new_dir != doc_dir:
         typer.echo(f"Document promoted/moved to: {new_dir.relative_to(root)}")
     typer.echo("Sync complete.")

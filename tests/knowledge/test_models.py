@@ -30,12 +30,13 @@ def test_document_metadata_valid():
         "source_type": SourceType.File,
         "original_source": "https://example.com",
         "created_at": datetime.now(),
-        "updated_at": datetime.now()
+        "updated_at": datetime.now(),
     }
     metadata = DocumentMetadata(**data)
     assert metadata.title == "Test Title"
     assert metadata.category == Category.Concept
     assert metadata.status == DocumentStatus.raw
+
 
 def test_document_metadata_categories():
     """Ensure all 8 categories are handled."""
@@ -47,7 +48,7 @@ def test_document_metadata_categories():
         Category.Analysis,
         Category.Source,
         Category.Snippet,
-        Category.Project
+        Category.Project,
     ]
     for cat in categories:
         data = {
@@ -65,10 +66,11 @@ def test_document_metadata_categories():
             "source_type": SourceType.File,
             "original_source": "source",
             "created_at": datetime.now(),
-            "updated_at": datetime.now()
+            "updated_at": datetime.now(),
         }
         metadata = DocumentMetadata(**data)
         assert metadata.category == cat
+
 
 def test_document_metadata_statuses():
     """Ensure all 4 statuses are handled."""
@@ -76,7 +78,7 @@ def test_document_metadata_statuses():
         DocumentStatus.raw,
         DocumentStatus.classified,
         DocumentStatus.needs_review,
-        DocumentStatus.reviewed
+        DocumentStatus.reviewed,
     ]
     for status in statuses:
         data = {
@@ -94,10 +96,11 @@ def test_document_metadata_statuses():
             "source_type": SourceType.File,
             "original_source": "source",
             "created_at": datetime.now(),
-            "updated_at": datetime.now()
+            "updated_at": datetime.now(),
         }
         metadata = DocumentMetadata(**data)
         assert metadata.status == status
+
 
 def test_document_metadata_confidence_validation():
     """Test confidence validation (0.0 - 1.0)."""
@@ -115,7 +118,7 @@ def test_document_metadata_confidence_validation():
         "source_type": SourceType.File,
         "original_source": "source",
         "created_at": datetime.now(),
-        "updated_at": datetime.now()
+        "updated_at": datetime.now(),
     }
 
     # Valid
@@ -128,6 +131,7 @@ def test_document_metadata_confidence_validation():
         DocumentMetadata(confidence=-0.1, **base_data)
     with pytest.raises(ValidationError):
         DocumentMetadata(confidence=1.1, **base_data)
+
 
 def test_document_metadata_relevance_score_validation():
     """Test relevance_score validation (1 - 10)."""
@@ -145,7 +149,7 @@ def test_document_metadata_relevance_score_validation():
         "source_type": SourceType.File,
         "original_source": "source",
         "created_at": datetime.now(),
-        "updated_at": datetime.now()
+        "updated_at": datetime.now(),
     }
 
     # Valid
@@ -158,6 +162,7 @@ def test_document_metadata_relevance_score_validation():
         DocumentMetadata(relevance_score=0, **base_data)
     with pytest.raises(ValidationError):
         DocumentMetadata(relevance_score=11, **base_data)
+
 
 def test_document_metadata_defaults():
     """Test default values of DocumentMetadata."""
@@ -180,6 +185,7 @@ def test_document_metadata_defaults():
     assert isinstance(metadata.created_at, datetime)
     assert isinstance(metadata.updated_at, datetime)
 
+
 def test_document_metadata_key_claims_limit():
     """Test key_claims max 5 limit."""
     base_data = {
@@ -196,7 +202,7 @@ def test_document_metadata_key_claims_limit():
         "source_type": SourceType.File,
         "original_source": "source",
         "created_at": datetime.now(),
-        "updated_at": datetime.now()
+        "updated_at": datetime.now(),
     }
 
     # Valid

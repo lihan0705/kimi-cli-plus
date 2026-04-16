@@ -11,7 +11,4 @@ def test_session_converter_jsonl_is_newline_delimited():
 
     result = SessionConverter.convert_session_to_jsonl(messages)
 
-    assert result == (
-        '{"role":"user","content":"Hello"}\n'
-        '{"role":"assistant","content":"Hi"}\n'
-    )
+    assert result == ('{"role":"user","content":"Hello"}\n{"role":"assistant","content":"Hi"}\n')
