@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .models import WIKI_PAGE_DIRECTORIES
+
 
 def get_wiki_root() -> Path:
     env_root = os.getenv("KIMI_WIKI_ROOT")
@@ -10,15 +12,11 @@ def get_wiki_root() -> Path:
 
 
 def ensure_wiki_dirs(root: Path) -> None:
-    for rel in [
-        "raw/sessions",
-        "raw/sources",
-        "entities",
-        "concepts",
-        "comparisons",
-        "queries",
-    ]:
+    for rel in ["raw/sessions", "raw/sources"]:
         (root / rel).mkdir(parents=True, exist_ok=True)
+
+    for directory in WIKI_PAGE_DIRECTORIES.values():
+        (root / directory).mkdir(parents=True, exist_ok=True)
 
     for filename, content in {
         "SCHEMA.md": "# Wiki Schema\n",

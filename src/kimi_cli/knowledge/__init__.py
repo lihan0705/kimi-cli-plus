@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from kimi_cli.wiki import (
+    WIKI_PAGE_KINDS,
     RawSourceKind,
     WikiPageKind,
     WikiSourceRef,
@@ -38,6 +39,7 @@ __all__ = [
     "SessionConverter",
     "SourceType",
     "TemporalType",
+    "WIKI_PAGE_KINDS",
     "WikiPageKind",
     "WikiSourceRef",
     "URLConverter",
