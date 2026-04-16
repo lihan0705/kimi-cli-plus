@@ -105,5 +105,5 @@ def test_distill_source_to_page_writes_distilled_summary_not_full_source_dump(tm
 
     page_text = result.page_path.read_text(encoding="utf-8")
     assert "## Summary" in page_text
-    assert "## Source Excerpt" in page_text
+    assert "## Source Excerpt" not in page_text
     assert "VERBATIM TAIL SHOULD NOT APPEAR IN THE CANONICAL PAGE." not in page_text

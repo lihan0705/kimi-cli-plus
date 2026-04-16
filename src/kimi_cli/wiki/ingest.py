@@ -137,7 +137,7 @@ def _render_page(
     page_kind: WikiPageKind,
     page_slug: str,
 ) -> str:
-    summary_lines, outline_lines, excerpt = _distill_source_text(source_text)
+    summary_lines, outline_lines = _distill_source_text(source_text)
     outline_block = ""
     if outline_lines:
         outline_block = "## Outline\n\n" + "\n".join(f"- {line}" for line in outline_lines) + "\n\n"
@@ -153,8 +153,6 @@ def _render_page(
         + "\n".join(f"- {line}" for line in summary_lines)
         + "\n\n"
         + outline_block
-        + "## Source Excerpt\n\n"
-        + excerpt
         + "\n"
     )
 
@@ -197,7 +195,7 @@ def _display_title(source_text: str, page_slug: str) -> str:
     return page_slug.replace("-", " ").title()
 
 
-def _distill_source_text(source_text: str) -> tuple[list[str], list[str], str]:
+def _distill_source_text(source_text: str) -> tuple[list[str], list[str]]:
     headings: list[str] = []
     paragraphs: list[str] = []
     current_paragraph: list[str] = []
@@ -226,8 +224,7 @@ def _distill_source_text(source_text: str) -> tuple[list[str], list[str], str]:
 
     summary_lines = _build_summary_lines(paragraphs)
     outline_lines = headings[:4]
-    excerpt = _build_excerpt(paragraphs)
-    return summary_lines, outline_lines, excerpt
+    return summary_lines, outline_lines
 
 
 def _build_summary_lines(paragraphs: list[str]) -> list[str]:
@@ -243,24 +240,6 @@ def _build_summary_lines(paragraphs: list[str]) -> list[str]:
     if not sentences:
         return ["No source content provided."]
     return sentences
-
-
-def _build_excerpt(paragraphs: list[str]) -> str:
-    if not paragraphs:
-        return "No source content provided."
-    excerpt_parts: list[str] = []
-    total_chars = 0
-    for paragraph in paragraphs[:2]:
-        piece = _truncate_text(paragraph, limit=180)
-        if total_chars + len(piece) > 280:
-            break
-        excerpt_parts.append(piece)
-        total_chars += len(piece)
-    if not excerpt_parts:
-        excerpt_parts.append(_truncate_text(paragraphs[0], limit=180))
-    return "\n\n".join(excerpt_parts)
-
-
 def _truncate_text(value: str, *, limit: int) -> str:
     if len(value) <= limit:
         return value
