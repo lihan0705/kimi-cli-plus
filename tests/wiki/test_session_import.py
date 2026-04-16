@@ -71,6 +71,23 @@ def test_imported_session_keeps_original_path_for_reimport_dedup(tmp_path: Path)
     assert archived.metadata.source.original_path == str(source)
 
 
+def test_import_session_file_normalizes_provenance_path(tmp_path: Path, monkeypatch):
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    source = tmp_path / "session.jsonl"
+    source.write_bytes(b'{"role":"user","content":"same"}\n')
+
+    relative_source = Path(source.relative_to(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    archived_from_relative = import_session_file(root, relative_source, session_id="sess_003")
+    archived_from_absolute = import_session_file(root, source, session_id="sess_003")
+
+    assert archived_from_relative.metadata.source.original_path == str(source.resolve())
+    assert archived_from_absolute.metadata.source.original_path == str(source.resolve())
+    assert archived_from_relative.metadata == archived_from_absolute.metadata
+
+
 def test_import_session_file_is_idempotent_for_matching_reimport(tmp_path: Path):
     root = tmp_path / "wiki"
     ensure_wiki_dirs(root)
@@ -111,4 +128,26 @@ def test_import_session_file_rejects_conflicting_reimport(tmp_path: Path):
 
     mock_write_bytes.assert_not_called()
     assert archived.raw_path.read_bytes() == b'{"role":"user","content":"first"}\n'
+    assert archived.metadata_path.exists()
+
+
+def test_import_session_file_refuses_to_rebuild_missing_archive(tmp_path: Path):
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    source = tmp_path / "session.jsonl"
+    source.write_bytes(b'{"role":"user","content":"first"}\n')
+
+    archived = import_session_file(root, source, session_id="sess_005")
+    archived.raw_path.unlink()
+
+    with patch("pathlib.Path.write_bytes") as mock_write_bytes:
+        try:
+            import_session_file(root, source, session_id="sess_005")
+        except ValueError as err:
+            assert "missing archived raw session" in str(err).lower()
+        else:  # pragma: no cover
+            raise AssertionError("Expected ValueError for missing raw archive")
+
+    mock_write_bytes.assert_not_called()
+    assert not archived.raw_path.exists()
     assert archived.metadata_path.exists()

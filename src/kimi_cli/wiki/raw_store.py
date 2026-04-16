@@ -31,11 +31,12 @@ def _write_raw_session_record(metadata_path: Path, metadata: RawSessionRecord) -
 
 
 def _build_raw_session_record(source: Path, session_id: str) -> RawSessionRecord:
+    normalized_source = source.expanduser().resolve()
     return RawSessionRecord(
         source=WikiSourceRef(
             kind=RawSourceKind.SESSION,
             source_id=session_id,
-            original_path=str(source),
+            original_path=str(normalized_source),
         )
     )
 
@@ -46,6 +47,10 @@ def archive_raw_session(root: Path, source: Path, session_id: str) -> ImportedRa
 
     raw_path = _session_raw_path(sessions_dir, session_id)
     metadata_path = _session_metadata_path(sessions_dir, session_id)
+
+    if metadata_path.exists() and not raw_path.exists():
+        raise ValueError(f"Missing archived raw session for {session_id}")
+
     incoming_bytes = source.read_bytes()
     incoming_metadata = _build_raw_session_record(source, session_id)
 
