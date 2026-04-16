@@ -55,20 +55,15 @@ def archive_raw_session(root: Path, source: Path, session_id: str) -> ImportedRa
     incoming_metadata = _build_raw_session_record(source, session_id)
 
     if raw_path.exists():
+        if not metadata_path.exists():
+            raise ValueError(f"Missing archived provenance for {session_id}")
         if raw_path.read_bytes() != incoming_bytes:
             raise ValueError(f"Conflicting raw session archive for {session_id}")
-        if metadata_path.exists():
-            existing_metadata = _load_raw_session_record(metadata_path)
-            if existing_metadata != incoming_metadata:
-                raise ValueError(f"Conflicting raw session metadata for {session_id}")
-            return ImportedRawSession(
-                metadata=existing_metadata,
-                raw_path=raw_path,
-                metadata_path=metadata_path,
-            )
-        _write_raw_session_record(metadata_path, incoming_metadata)
+        existing_metadata = _load_raw_session_record(metadata_path)
+        if existing_metadata != incoming_metadata:
+            raise ValueError(f"Conflicting raw session metadata for {session_id}")
         return ImportedRawSession(
-            metadata=incoming_metadata,
+            metadata=existing_metadata,
             raw_path=raw_path,
             metadata_path=metadata_path,
         )

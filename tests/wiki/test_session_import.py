@@ -151,3 +151,25 @@ def test_import_session_file_refuses_to_rebuild_missing_archive(tmp_path: Path):
     mock_write_bytes.assert_not_called()
     assert not archived.raw_path.exists()
     assert archived.metadata_path.exists()
+
+
+def test_import_session_file_refuses_to_rebuild_missing_metadata(tmp_path: Path):
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    source = tmp_path / "session.jsonl"
+    source.write_bytes(b'{"role":"user","content":"first"}\n')
+
+    archived = import_session_file(root, source, session_id="sess_006")
+    archived.metadata_path.unlink()
+
+    with patch("pathlib.Path.write_text") as mock_write_text:
+        try:
+            import_session_file(root, source, session_id="sess_006")
+        except ValueError as err:
+            assert "missing archived provenance" in str(err).lower()
+        else:  # pragma: no cover
+            raise AssertionError("Expected ValueError for missing metadata")
+
+    mock_write_text.assert_not_called()
+    assert archived.raw_path.exists()
+    assert not archived.metadata_path.exists()
