@@ -7,6 +7,12 @@ from pathlib import Path
 from .models import WIKI_PAGE_DIRECTORIES, WikiPageKind
 
 
+class WikiRelationshipParseError(ValueError):
+    def __init__(self, path: Path, message: str) -> None:
+        super().__init__(f"{path}: {message}")
+        self.path = path
+
+
 @dataclass(frozen=True)
 class WikiPageRecord:
     path: Path
@@ -21,27 +27,30 @@ def discover_pages(root: Path) -> list[WikiPageRecord]:
     pages: list[WikiPageRecord] = []
     for directory in WIKI_PAGE_DIRECTORIES.values():
         for page_path in sorted((root / directory).glob("*.md")):
-            text = page_path.read_text(encoding="utf-8")
-            frontmatter, body = split_frontmatter(text)
-            slug = str(frontmatter["page_slug"])
-            title = extract_page_title(body, slug)
-            normalized_keys = frozenset(
-                {
-                    normalize_link_key(slug),
-                    normalize_link_key(title),
-                    normalize_link_key(slug.split("--")[0]),
-                }
-            )
-            pages.append(
-                WikiPageRecord(
-                    path=page_path,
-                    slug=slug,
-                    title=title,
-                    page_kind=WikiPageKind(str(frontmatter["page_kind"])),
-                    body=body,
-                    normalized_keys=normalized_keys,
+            try:
+                text = page_path.read_text(encoding="utf-8")
+                frontmatter, body = split_frontmatter(text)
+                slug = str(frontmatter["page_slug"])
+                title = extract_page_title(body, slug)
+                normalized_keys = frozenset(
+                    {
+                        normalize_link_key(slug),
+                        normalize_link_key(title),
+                        normalize_link_key(slug.split("--")[0]),
+                    }
                 )
-            )
+                pages.append(
+                    WikiPageRecord(
+                        path=page_path,
+                        slug=slug,
+                        title=title,
+                        page_kind=WikiPageKind(str(frontmatter["page_kind"])),
+                        body=body,
+                        normalized_keys=normalized_keys,
+                    )
+                )
+            except (KeyError, ValueError) as exc:
+                raise WikiRelationshipParseError(page_path, str(exc)) from exc
     return pages
 
 
@@ -78,8 +87,8 @@ def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
 def extract_page_title(body: str, slug: str) -> str:
     for line in body.splitlines():
         stripped = line.strip()
-        if stripped.startswith("#"):
-            title = stripped.lstrip("#").strip()
+        if stripped.startswith("# ") and not stripped.startswith("##"):
+            title = stripped[2:].strip()
             if title:
                 return title
     return slug.replace("-", " ").title()
