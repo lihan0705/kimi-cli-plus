@@ -22,6 +22,7 @@ from kimi_cli.knowledge.compiler import compile_wiki_index
 from kimi_cli.knowledge.paths import get_document_dir
 from kimi_cli.wiki import ensure_wiki_dirs, get_wiki_root
 from kimi_cli.wiki.ingest import WikiSourceLoadError, distill_source_to_page, load_source_material
+from kimi_cli.wiki.relationships import rebuild_relationships
 from kimi_cli.wiki.session_import import import_session_file
 
 cli = typer.Typer(help="Manage Knowledge Base (Wiki).")
@@ -185,6 +186,25 @@ def orient():
     typer.echo(f"Log: {root / 'log.md'}")
     for name in ("entities", "concepts", "comparisons", "queries", "raw/sessions", "raw/sources"):
         typer.echo(f"- {root / name}")
+
+
+@cli.command("relink")
+def relink() -> None:
+    root = get_wiki_root()
+    ensure_wiki_dirs(root)
+    result = rebuild_relationships(root)
+    typer.echo("Relationship rebuild complete.")
+    typer.echo(f"Pages scanned: {result.page_count}")
+    typer.echo(f"Relations updated at {result.relations_path}")
+    typer.echo(f"Audit updated at {result.audit_path}")
+
+
+@cli.command("audit")
+def audit() -> None:
+    root = get_wiki_root()
+    ensure_wiki_dirs(root)
+    result = rebuild_relationships(root)
+    typer.echo(f"Audit updated at {result.audit_path}")
 
 
 @cli.command("import-session")
