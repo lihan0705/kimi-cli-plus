@@ -1,5 +1,5 @@
 import re
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Collection, Sequence
 from dataclasses import dataclass
 from typing import overload
 
@@ -122,3 +122,37 @@ def parse_slash_command_call(user_input: str) -> SlashCommandCall | None:
         return None
     raw_args = user_input[name_match.end() :].lstrip()
     return SlashCommandCall(name=command_name, args=raw_args, raw_input=user_input)
+
+
+def normalize_skill_namespace_alias_call(
+    command_call: SlashCommandCall,
+    known_command_names: Collection[str],
+    *,
+    skill_prefix: str = "skill:",
+) -> SlashCommandCall:
+    """Normalize /<skill-name>:<action> into /skill:<skill-name> <action>.
+
+    Example:
+        /llm-wiki:ingest https://example.com
+        -> /skill:llm-wiki ingest https://example.com
+    """
+    if command_call.name in known_command_names:
+        return command_call
+
+    skill_name, sep, action = command_call.name.partition(":")
+    if not sep or not skill_name or not action:
+        return command_call
+
+    normalized_name = f"{skill_prefix}{skill_name}"
+    if normalized_name not in known_command_names:
+        return command_call
+
+    normalized_args = f"{action} {command_call.args}".strip()
+    normalized_raw_input = f"/{normalized_name}"
+    if normalized_args:
+        normalized_raw_input += f" {normalized_args}"
+    return SlashCommandCall(
+        name=normalized_name,
+        args=normalized_args,
+        raw_input=normalized_raw_input,
+    )

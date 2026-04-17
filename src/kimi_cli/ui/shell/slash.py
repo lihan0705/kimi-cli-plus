@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from prompt_toolkit.shortcuts.choice_input import ChoiceInput
@@ -592,6 +593,228 @@ async def _show_plugins(app: Shell, soul: KimiSoul) -> None:
             )
 
         console.print(BulletColumns(Group(*lines), bullet_style="green"))
+
+
+@registry.command(aliases=["knowledge", "kb"])
+async def wiki(app: Shell, args: str):
+    """Wiki operations: /wiki [list|read|ingest|relink|audit|delete|index|orient|import-session]"""
+    from rich.table import Table
+
+    from kimi_cli.wiki import (
+        delete_pages,
+        ensure_wiki_dirs,
+        get_wiki_root,
+        list_pages,
+        read_page,
+    )
+    from kimi_cli.wiki.index import rebuild_wiki_index
+    from kimi_cli.wiki.ingest import (
+        WikiSourceLoadError,
+        distill_source_to_page,
+        load_source_material,
+    )
+    from kimi_cli.wiki.relationships import (
+        WikiRelationshipParseError,
+        audit_relationships,
+        rebuild_relationships,
+    )
+    from kimi_cli.wiki.session_import import import_session_file
+
+    root = get_wiki_root()
+    ensure_wiki_dirs(root)
+    parts = args.strip().split(maxsplit=1)
+    subcmd = parts[0].lower() if parts else "list"
+    sub_args = parts[1] if len(parts) > 1 else ""
+
+    if subcmd == "list":
+        pages = list_pages(root)
+        if not pages:
+            console.print("[yellow]No wiki pages found.[/yellow]")
+            return
+
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Kind")
+        table.add_column("Slug")
+        table.add_column("Title")
+        table.add_column("Summary")
+        for page in pages:
+            table.add_row(page.page_kind, page.slug, page.title, page.summary_preview)
+        console.print(table)
+
+    elif subcmd == "read":
+        if not sub_args:
+            console.print("[red]Usage: /wiki read <slug>[/red]")
+            return
+        try:
+            page = read_page(root, sub_args.strip())
+        except FileNotFoundError:
+            console.print(f"[red]Wiki page not found: {sub_args.strip()}[/red]")
+            return
+        console.print(page.content)
+
+    elif subcmd == "relink":
+        try:
+            result = rebuild_relationships(root)
+        except WikiRelationshipParseError as exc:
+            console.print(f"[red]Error: {exc}[/red]")
+            return
+        console.print(f"[green]Rebuilt relationships for {result.page_count} pages.[/green]")
+
+    elif subcmd == "audit":
+        try:
+            result = audit_relationships(root)
+        except WikiRelationshipParseError as exc:
+            console.print(f"[red]Error: {exc}[/red]")
+            return
+        console.print(f"[green]Audit updated at {result.audit_path}[/green]")
+
+    elif subcmd == "ingest":
+        source = sub_args.strip()
+        if not source:
+            console.print("[red]Usage: /wiki ingest <url-or-file>[/red]")
+            return
+        try:
+            material = load_source_material(source)
+        except WikiSourceLoadError as exc:
+            console.print(f"[red]Error: {exc}[/red]")
+            return
+        except Exception as exc:  # pragma: no cover - unexpected failures
+            console.print(f"[red]Error: Ingestion failed: {exc}[/red]")
+            return
+
+        try:
+            result = distill_source_to_page(
+                root=root,
+                source_text=material.source_text,
+                source_title=material.source_title,
+                page_kind="concept",
+                page_slug=material.source_title,
+                source_identity=material.source_identity,
+            )
+        except Exception as exc:  # pragma: no cover - unexpected filesystem failures
+            console.print(f"[red]Error: Ingestion failed: {exc}[/red]")
+            return
+        console.print(f"[green]Distilled source into wiki page: [[{result.page_slug}]][/green]")
+        console.print(f"[green]Page path:[/green] {result.page_path}")
+        console.print(f"[green]Index updated at[/green] {result.index_path}")
+        console.print(f"[green]Log updated at[/green] {root / 'log.md'}")
+
+    elif subcmd == "delete":
+        slugs = sub_args.split()
+        if not slugs:
+            console.print("[red]Usage: /wiki delete <slug1> [slug2 ...][/red]")
+            return
+        result = delete_pages(root, slugs)
+        rebuild_wiki_index(root)
+        rebuild_relationships(root)
+        deleted = ", ".join(result.deleted_slugs) if result.deleted_slugs else "(none)"
+        console.print(f"[green]Deleted:[/green] {deleted}")
+        if result.missing_slugs:
+            console.print(f"[yellow]Missing:[/yellow] {', '.join(result.missing_slugs)}")
+
+    elif subcmd == "index":
+        path = rebuild_wiki_index(root)
+        console.print(f"[green]Index recompiled at {path}[/green]")
+
+    elif subcmd == "orient":
+        console.print(f"[green]Wiki root:[/green] {root}")
+        console.print(f"[green]Index:[/green] {root / 'index.md'}")
+        console.print(f"[green]Log:[/green] {root / 'log.md'}")
+        for name in (
+            "entities",
+            "concepts",
+            "comparisons",
+            "queries",
+            "raw/sessions",
+            "raw/sources",
+        ):
+            console.print(f"- {root / name}")
+
+    elif subcmd == "import-session":
+        session_parts = sub_args.split(maxsplit=2)
+        if len(session_parts) < 2:
+            console.print(
+                "[red]Usage: /wiki import-session <session-id> <session-jsonl-path>[/red]"
+            )
+            return
+        session_id, session_path = session_parts[0], session_parts[1]
+        try:
+            archived = import_session_file(root, Path(session_path), session_id=session_id)
+        except Exception as exc:
+            console.print(f"[red]Error: {exc}[/red]")
+            return
+        console.print(f"[green]Archived session to[/green] {archived.raw_path}")
+        console.print(f"[green]Metadata written to[/green] {archived.metadata_path}")
+
+    else:
+        console.print(
+            "[red]Usage: /wiki [list|read <slug>|ingest <url-or-file>|relink|audit|"
+            "delete <slug...>|index|orient|import-session <session-id> <path>][/red]"
+        )
+
+
+def _llm_wiki_args(subcmd: str, args: str) -> str:
+    return f"{subcmd} {args}".strip()
+
+
+async def _invoke_wiki_command(app: Shell, subcmd: str, args: str) -> None:
+    ret = wiki(app, _llm_wiki_args(subcmd, args))
+    if isinstance(ret, Awaitable):
+        await ret
+
+
+@registry.command(name="llm-wiki:list")
+async def llm_wiki_list(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:list"""
+    await _invoke_wiki_command(app, "list", args)
+
+
+@registry.command(name="llm-wiki:read")
+async def llm_wiki_read(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:read <slug>"""
+    await _invoke_wiki_command(app, "read", args)
+
+
+@registry.command(name="llm-wiki:ingest")
+async def llm_wiki_ingest(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:ingest <url-or-file>"""
+    await _invoke_wiki_command(app, "ingest", args)
+
+
+@registry.command(name="llm-wiki:relink")
+async def llm_wiki_relink(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:relink"""
+    await _invoke_wiki_command(app, "relink", args)
+
+
+@registry.command(name="llm-wiki:audit")
+async def llm_wiki_audit(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:audit"""
+    await _invoke_wiki_command(app, "audit", args)
+
+
+@registry.command(name="llm-wiki:delete")
+async def llm_wiki_delete(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:delete <slug...>"""
+    await _invoke_wiki_command(app, "delete", args)
+
+
+@registry.command(name="llm-wiki:index")
+async def llm_wiki_index(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:index"""
+    await _invoke_wiki_command(app, "index", args)
+
+
+@registry.command(name="llm-wiki:orient")
+async def llm_wiki_orient(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:orient"""
+    await _invoke_wiki_command(app, "orient", args)
+
+
+@registry.command(name="llm-wiki:import-session")
+async def llm_wiki_import_session(app: Shell, args: str):
+    """LLM wiki quick command: /llm-wiki:import-session <session-id> <session-jsonl-path>"""
+    await _invoke_wiki_command(app, "import-session", args)
 
 
 @registry.command

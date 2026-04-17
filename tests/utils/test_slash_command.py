@@ -11,6 +11,7 @@ from kimi_cli.utils.slashcmd import (
     SlashCommand,
     SlashCommandCall,
     SlashCommandRegistry,
+    normalize_skill_namespace_alias_call,
     parse_slash_command_call,
 )
 
@@ -106,6 +107,34 @@ def test_parse_slash_command_call():
 
     result = parse_slash_command_call("/cmd '")
     assert result == snapshot(SlashCommandCall(name="cmd", args="'", raw_input="/cmd '"))
+
+
+def test_normalize_skill_namespace_alias_call_maps_to_skill_prefix() -> None:
+    command_call = SlashCommandCall(
+        name="llm-wiki:ingest",
+        args="https://example.com",
+        raw_input="/llm-wiki:ingest https://example.com",
+    )
+
+    normalized = normalize_skill_namespace_alias_call(command_call, {"skill:llm-wiki", "help"})
+
+    assert normalized == SlashCommandCall(
+        name="skill:llm-wiki",
+        args="ingest https://example.com",
+        raw_input="/skill:llm-wiki ingest https://example.com",
+    )
+
+
+def test_normalize_skill_namespace_alias_call_keeps_unknown_commands() -> None:
+    command_call = SlashCommandCall(
+        name="unknown-skill:run",
+        args="foo",
+        raw_input="/unknown-skill:run foo",
+    )
+
+    normalized = normalize_skill_namespace_alias_call(command_call, {"skill:llm-wiki", "help"})
+
+    assert normalized == command_call
 
 
 @pytest.fixture

@@ -203,7 +203,8 @@ class KimiToolset:
         args: list[Any] = []
         if "__init__" in tool_cls.__dict__:
             # the tool class overrides the `__init__` of base class
-            for param in inspect.signature(tool_cls).parameters.values():
+            signature = inspect.signature(tool_cls, eval_str=True, globals=module.__dict__)
+            for param in signature.parameters.values():
                 if param.kind == inspect.Parameter.KEYWORD_ONLY:
                     # once we encounter a keyword-only parameter, we stop injecting dependencies
                     break
