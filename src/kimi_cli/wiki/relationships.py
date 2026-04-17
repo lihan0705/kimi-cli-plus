@@ -23,6 +23,14 @@ class WikiPageRecord:
     normalized_keys: frozenset[str]
 
 
+@dataclass(frozen=True)
+class RelationshipBuildResult:
+    page_count: int
+    rewritten_pages: tuple[Path, ...]
+    relations_path: Path
+    audit_path: Path
+
+
 def discover_pages(root: Path) -> list[WikiPageRecord]:
     pages: list[WikiPageRecord] = []
     for directory in WIKI_PAGE_DIRECTORIES.values():
@@ -57,6 +65,43 @@ def discover_pages(root: Path) -> list[WikiPageRecord]:
     return pages
 
 
+def rebuild_relationships(root: Path) -> RelationshipBuildResult:
+    pages = discover_pages(root)
+    links_by_slug: dict[str, list[str]] = {}
+    backlinks_by_slug: dict[str, list[str]] = {page.slug: [] for page in pages}
+
+    for page in pages:
+        links = collect_page_links(page, pages)
+        links_by_slug[page.slug] = links
+        for target_slug in links:
+            if target_slug in backlinks_by_slug:
+                backlinks_by_slug[target_slug].append(page.slug)
+
+    rewritten_pages: list[Path] = []
+    for page in pages:
+        updated = rewrite_page_relationship_sections(
+            page.path,
+            outgoing_slugs=links_by_slug[page.slug],
+            backlink_slugs=sorted(backlinks_by_slug[page.slug]),
+        )
+        if updated:
+            rewritten_pages.append(page.path)
+
+    relations_path = root / "RELATIONS.md"
+    audit_path = root / "audit.md"
+    relations_path.write_text(
+        render_relations_report(pages, links_by_slug, backlinks_by_slug),
+        encoding="utf-8",
+    )
+    audit_path.write_text(render_audit_report(pages, links_by_slug), encoding="utf-8")
+    return RelationshipBuildResult(
+        page_count=len(pages),
+        rewritten_pages=tuple(rewritten_pages),
+        relations_path=relations_path,
+        audit_path=audit_path,
+    )
+
+
 def normalize_link_key(value: str) -> str:
     lowered = value.lower().strip()
     collapsed = re.sub(r"[\s_-]+", " ", lowered)
@@ -70,6 +115,84 @@ def resolve_link_target(candidate: str, pages: list[WikiPageRecord]) -> str | No
     if len(unique_matches) == 1:
         return unique_matches[0]
     return None
+
+
+def collect_page_links(page: WikiPageRecord, pages: list[WikiPageRecord]) -> list[str]:
+    normalized_body = normalize_link_key(_body_without_relationship_sections(page.body))
+    links: list[str] = []
+    for target in pages:
+        if target.slug == page.slug:
+            continue
+        if target.slug in links:
+            continue
+        for candidate in (target.title, base_slug_from_page_slug(target.slug), target.slug):
+            normalized_candidate = normalize_link_key(candidate)
+            if not normalized_candidate:
+                continue
+            if _contains_normalized_phrase(normalized_body, normalized_candidate):
+                if resolve_link_target(normalized_candidate, pages) == target.slug:
+                    links.append(target.slug)
+                break
+    return links
+
+
+def rewrite_page_relationship_sections(
+    path: Path,
+    *,
+    outgoing_slugs: list[str],
+    backlink_slugs: list[str],
+) -> bool:
+    original_text = path.read_text(encoding="utf-8")
+    frontmatter_text, body = _split_frontmatter_text(original_text, path)
+    rewritten_body = _rewrite_relationship_body(body, outgoing_slugs, backlink_slugs)
+    rewritten_text = frontmatter_text + rewritten_body
+    if rewritten_text == original_text:
+        return False
+    path.write_text(rewritten_text, encoding="utf-8")
+    return True
+
+
+def render_links_section(links: list[str]) -> str:
+    if not links:
+        return "## Links\n\n- (none)\n"
+    lines = ["## Links", ""]
+    lines.extend(f"- [[{slug}]]" for slug in links)
+    return "\n".join(lines) + "\n"
+
+
+def render_backlinks_section(backlinks: list[str]) -> str:
+    if not backlinks:
+        return "## Backlinks\n\n- (none)\n"
+    lines = ["## Backlinks", ""]
+    lines.extend(f"- [[{slug}]]" for slug in backlinks)
+    return "\n".join(lines) + "\n"
+
+
+def render_relations_report(
+    pages: list[WikiPageRecord],
+    links_by_slug: dict[str, list[str]],
+    backlinks_by_slug: dict[str, list[str]],
+) -> str:
+    lines = ["# Wiki Relationships", ""]
+    for page in pages:
+        outgoing = len(links_by_slug[page.slug])
+        incoming = len(backlinks_by_slug[page.slug])
+        isolated = "yes" if outgoing == 0 and incoming == 0 else "no"
+        lines.append(f"- [[{page.slug}]] | out={outgoing} | in={incoming} | isolated={isolated}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_audit_report(
+    pages: list[WikiPageRecord],
+    links_by_slug: dict[str, list[str]],
+) -> str:
+    isolated_pages = [page.slug for page in pages if not links_by_slug[page.slug]]
+    lines = ["# Wiki Audit", "", "## Isolated Pages", ""]
+    if isolated_pages:
+        lines.extend(f"- [[{slug}]]" for slug in isolated_pages)
+    else:
+        lines.append("No issues found.")
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def split_frontmatter(text: str, path: Path | None = None) -> tuple[dict[str, str], str]:
@@ -119,3 +242,59 @@ def _parse_frontmatter(lines: list[str], path: Path | None) -> dict[str, str]:
         key, value = stripped.split(":", 1)
         data[key.strip()] = value.strip()
     return data
+
+
+def _split_frontmatter_text(text: str, path: Path) -> tuple[str, str]:
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].strip() != "---":
+        return "", text
+
+    for index, line in enumerate(lines[1:], start=1):
+        if line.strip() != "---":
+            continue
+        frontmatter_text = "".join(lines[: index + 1])
+        body_text = "".join(lines[index + 1 :])
+        return frontmatter_text, body_text
+
+    raise WikiRelationshipParseError(path, "unterminated frontmatter")
+
+
+def _body_without_relationship_sections(body: str) -> str:
+    lines = body.splitlines()
+    kept_lines: list[str] = []
+    skipping = False
+    owned_headings = {"## Links", "## Backlinks"}
+    for line in lines:
+        stripped = line.strip()
+        if stripped in owned_headings:
+            skipping = True
+            continue
+        if skipping and stripped.startswith("## "):
+            if stripped in owned_headings:
+                continue
+            skipping = False
+        if not skipping:
+            kept_lines.append(line)
+    return "\n".join(kept_lines)
+
+
+def _rewrite_relationship_body(
+    body: str,
+    outgoing_slugs: list[str],
+    backlink_slugs: list[str],
+) -> str:
+    stripped_body = _body_without_relationship_sections(body).rstrip()
+    sections = [
+        render_links_section(outgoing_slugs).rstrip(),
+        render_backlinks_section(backlink_slugs).rstrip(),
+    ]
+    if not stripped_body:
+        return "\n\n".join(sections).rstrip() + "\n"
+    return stripped_body + "\n\n" + "\n\n".join(sections).rstrip() + "\n"
+
+
+def _contains_normalized_phrase(text: str, phrase: str) -> bool:
+    if not phrase:
+        return False
+    pattern = rf"(?<![a-z0-9]){re.escape(phrase)}(?![a-z0-9])"
+    return re.search(pattern, text) is not None

@@ -22,6 +22,8 @@ def ensure_wiki_dirs(root: Path) -> None:
         "SCHEMA.md": "# Wiki Schema\n",
         "index.md": "# Wiki Index\n",
         "log.md": "# Wiki Log\n",
+        "RELATIONS.md": "# Wiki Relationships\n",
+        "audit.md": "# Wiki Audit\n",
     }.items():
         path = root / filename
         if not path.exists():
