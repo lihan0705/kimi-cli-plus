@@ -29,7 +29,7 @@ def discover_pages(root: Path) -> list[WikiPageRecord]:
         for page_path in sorted((root / directory).glob("*.md")):
             try:
                 text = page_path.read_text(encoding="utf-8")
-                frontmatter, body = split_frontmatter(text)
+                frontmatter, body = split_frontmatter(text, page_path)
                 slug = str(frontmatter["page_slug"]).strip()
                 if not slug:
                     raise ValueError("page_slug is missing or empty")
@@ -72,7 +72,7 @@ def resolve_link_target(candidate: str, pages: list[WikiPageRecord]) -> str | No
     return None
 
 
-def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
+def split_frontmatter(text: str, path: Path | None = None) -> tuple[dict[str, str], str]:
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}, text
@@ -82,7 +82,7 @@ def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
             continue
         frontmatter_lines = lines[1:index]
         body = "\n".join(lines[index + 1 :])
-        return _parse_frontmatter(frontmatter_lines), body
+        return _parse_frontmatter(frontmatter_lines, path), body
 
     return {}, text
 
@@ -102,12 +102,17 @@ def base_slug_from_page_slug(slug: str) -> str:
     return base_slug or slug
 
 
-def _parse_frontmatter(lines: list[str]) -> dict[str, str]:
+def _parse_frontmatter(lines: list[str], path: Path | None) -> dict[str, str]:
     data: dict[str, str] = {}
     for line in lines:
         stripped = line.strip()
-        if not stripped or stripped.startswith("#") or ":" not in stripped:
+        if not stripped or stripped.startswith("#"):
             continue
+        if ":" not in stripped:
+            message = f"malformed frontmatter syntax: {stripped!r}"
+            if path is None:
+                raise ValueError(message)
+            raise WikiRelationshipParseError(path, message)
         key, value = stripped.split(":", 1)
         data[key.strip()] = value.strip()
     return data
