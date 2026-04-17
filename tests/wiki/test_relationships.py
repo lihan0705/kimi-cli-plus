@@ -126,6 +126,33 @@ def test_discover_pages_raises_clear_error_for_malformed_frontmatter_syntax(
         raise AssertionError("Expected WikiRelationshipParseError")
 
 
+def test_discover_pages_raises_clear_error_for_unterminated_frontmatter(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    page = root / "concepts" / "broken.md"
+    page.write_text(
+        "---\n"
+        "source_title: broken\n"
+        "source_identity: note://broken\n"
+        "page_kind: concept\n"
+        "page_slug: retrieval-augmented-generation--abcd1234\n"
+        "\n"
+        "# Broken\n",
+        encoding="utf-8",
+    )
+
+    try:
+        discover_pages(root)
+    except WikiRelationshipParseError as exc:
+        assert exc.path == page
+        assert "unterminated" in str(exc)
+        assert "frontmatter" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected WikiRelationshipParseError")
+
+
 def test_discover_pages_raises_clear_error_for_empty_page_slug(tmp_path: Path) -> None:
     root = tmp_path / "wiki"
     ensure_wiki_dirs(root)

@@ -84,7 +84,10 @@ def split_frontmatter(text: str, path: Path | None = None) -> tuple[dict[str, st
         body = "\n".join(lines[index + 1 :])
         return _parse_frontmatter(frontmatter_lines, path), body
 
-    return {}, text
+    message = "unterminated frontmatter"
+    if path is None:
+        raise ValueError(message)
+    raise WikiRelationshipParseError(path, message)
 
 
 def extract_page_title(body: str, slug: str) -> str:
