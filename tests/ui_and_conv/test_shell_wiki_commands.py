@@ -78,3 +78,24 @@ async def test_wiki_delete_subcommand_updates_artifacts(tmp_path: Path, monkeypa
     assert not (root / "concepts" / "alpha--aaaa1111.md").exists()
     assert (root / "index.md").exists()
     assert (root / "RELATIONS.md").exists()
+
+
+@pytest.mark.asyncio
+async def test_llm_wiki_ingest_command_creates_page(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    monkeypatch.setenv("KIMI_WIKI_ROOT", str(root))
+
+    source = tmp_path / "source.md"
+    source.write_text("# LLM Wiki\n\nLLM wiki keeps knowledge in markdown.\n", encoding="utf-8")
+
+    shell = Mock()
+    shell.soul = Mock()
+
+    command = shell_slash_registry.find_command("llm-wiki:ingest")
+    assert command is not None
+    ret = command.func(shell, str(source))
+    if isinstance(ret, Awaitable):
+        await ret
+
+    assert list((root / "concepts").glob("*.md"))

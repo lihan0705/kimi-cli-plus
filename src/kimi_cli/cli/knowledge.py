@@ -35,8 +35,9 @@ def list_docs() -> None:
     table.add_column("Kind")
     table.add_column("Slug")
     table.add_column("Title")
+    table.add_column("Summary")
     for page in pages:
-        table.add_row(page.page_kind, page.slug, page.title)
+        table.add_row(page.page_kind, page.slug, page.title, page.summary_preview)
 
     Console().print(table)
 

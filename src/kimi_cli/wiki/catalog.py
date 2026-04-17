@@ -12,6 +12,7 @@ class WikiPageSummary:
     page_kind: str
     slug: str
     title: str
+    summary_preview: str
     path: Path
 
 
@@ -35,7 +36,13 @@ def list_pages(root: Path) -> list[WikiPageSummary]:
             slug = str(frontmatter["page_slug"]).strip()
             title = extract_page_title(body, base_slug_from_page_slug(slug))
             pages.append(
-                WikiPageSummary(page_kind=page_kind.value, slug=slug, title=title, path=path)
+                WikiPageSummary(
+                    page_kind=page_kind.value,
+                    slug=slug,
+                    title=title,
+                    summary_preview=extract_summary_preview(body),
+                    path=path,
+                )
             )
     return pages
 
@@ -59,3 +66,28 @@ def delete_pages(root: Path, slugs: list[str]) -> DeletePagesResult:
         page.path.unlink()
         deleted.append(slug)
     return DeletePagesResult(deleted_slugs=deleted, missing_slugs=missing)
+
+
+def extract_summary_preview(body: str, *, limit: int = 80) -> str:
+    lines = body.splitlines()
+    in_summary = False
+    for raw in lines:
+        line = raw.strip()
+        if not in_summary:
+            if line.lower() == "## summary":
+                in_summary = True
+            continue
+        if not line:
+            continue
+        if line.startswith("#"):
+            break
+        if line.startswith("- "):
+            return _truncate_summary(line[2:].strip(), limit=limit)
+        return _truncate_summary(line, limit=limit)
+    return "-"
+
+
+def _truncate_summary(value: str, *, limit: int) -> str:
+    if len(value) <= limit:
+        return value
+    return value[: limit - 3].rstrip() + "..."

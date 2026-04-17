@@ -1,6 +1,6 @@
 ---
 name: llm-wiki
-description: Use this skill when the user wants to distill source material into the Markdown-first wiki. It focuses on writing or updating canonical wiki pages on disk, then refreshing index.md and appending log.md.
+description: Markdown-first wiki operations [ingest|relink|audit|list|read|delete|index|orient|import-session]. Distill sources into canonical pages, then maintain index/log and bidirectional link quality.
 ---
 
 # LLM Wiki Distillation

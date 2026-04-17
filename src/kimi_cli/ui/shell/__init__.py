@@ -9,6 +9,7 @@ from typing import Any
 
 from kosong.chat_provider import APIStatusError, ChatProviderError
 from loguru import logger
+from prompt_toolkit.shortcuts.choice_input import ChoiceInput
 from rich.console import Group, RenderableType
 from rich.panel import Panel
 from rich.table import Table
@@ -26,7 +27,12 @@ from kimi_cli.ui.shell.visualize import visualize
 from kimi_cli.utils.envvar import get_env_bool
 from kimi_cli.utils.logging import open_original_stderr
 from kimi_cli.utils.signals import install_sigint_handler
-from kimi_cli.utils.slashcmd import SlashCommand, SlashCommandCall, parse_slash_command_call
+from kimi_cli.utils.slashcmd import (
+    SlashCommand,
+    SlashCommandCall,
+    normalize_skill_namespace_alias_call,
+    parse_slash_command_call,
+)
 from kimi_cli.utils.subprocess_env import get_clean_env
 from kimi_cli.utils.term import ensure_new_line, ensure_tty_sane
 from kimi_cli.wire.types import ContentPart, StatusUpdate
@@ -179,6 +185,13 @@ class Shell:
     async def _run_slash_command(self, command_call: SlashCommandCall) -> None:
         from kimi_cli.cli import Reload, SwitchToWeb
 
+        command_call = normalize_skill_namespace_alias_call(
+            command_call, self._available_slash_commands.keys()
+        )
+        prompted_call = await self._maybe_prompt_llm_wiki_action(command_call)
+        if prompted_call is None:
+            return
+        command_call = prompted_call
         if command_call.name not in self._available_slash_commands:
             logger.info("Unknown slash command /{command}", command=command_call.name)
             console.print(
@@ -214,6 +227,48 @@ class Shell:
             logger.exception("Unknown error:")
             console.print(f"[red]Unknown error: {e}[/red]")
             raise  # re-raise unknown error
+
+    async def _maybe_prompt_llm_wiki_action(
+        self, command_call: SlashCommandCall
+    ) -> SlashCommandCall | None:
+        if command_call.name != "skill:llm-wiki" or command_call.args.strip():
+            return command_call
+        if "skill:llm-wiki" not in self._available_slash_commands:
+            return command_call
+
+        actions: list[tuple[str, str]] = [
+            ("ingest", "ingest (URL/file/PDF)"),
+            ("relink", "relink (rebuild links/backlinks)"),
+            ("audit", "audit (read-only checks)"),
+            ("list", "list (all pages)"),
+            ("read", "read (open one page)"),
+            ("delete", "delete (remove page by slug)"),
+            ("index", "index (rebuild index.md)"),
+            ("orient", "orient (show wiki root/layout)"),
+            ("import-session", "import-session (archive jsonl)"),
+        ]
+
+        try:
+            selected = await ChoiceInput(
+                message="Select llm-wiki action (↑↓ navigate, Enter select, Ctrl+C cancel):",
+                options=actions,
+                default="ingest",
+            ).prompt_async()
+        except (EOFError, KeyboardInterrupt):
+            return None
+
+        if not selected:
+            return None
+
+        llm_wiki_cmd = f"llm-wiki:{selected}"
+        if llm_wiki_cmd in self._available_slash_commands:
+            return SlashCommandCall(name=llm_wiki_cmd, args="", raw_input=f"/{llm_wiki_cmd}")
+
+        return SlashCommandCall(
+            name=command_call.name,
+            args=selected,
+            raw_input=f"/skill:llm-wiki {selected}",
+        )
 
     async def run_soul_command(self, user_input: str | list[ContentPart]) -> bool:
         """

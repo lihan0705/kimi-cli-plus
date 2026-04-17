@@ -41,7 +41,11 @@ from kimi_cli.tools.dmail import NAME as SendDMail_NAME
 from kimi_cli.tools.skill import SkillTool
 from kimi_cli.tools.utils import ToolRejectedError
 from kimi_cli.utils.logging import logger
-from kimi_cli.utils.slashcmd import SlashCommand, parse_slash_command_call
+from kimi_cli.utils.slashcmd import (
+    SlashCommand,
+    normalize_skill_namespace_alias_call,
+    parse_slash_command_call,
+)
 from kimi_cli.wire.file import WireFile
 from kimi_cli.wire.types import (
     ApprovalRequest,
@@ -253,6 +257,9 @@ class KimiSoul:
         text_input = user_message.extract_text(" ").strip()
 
         if command_call := parse_slash_command_call(text_input):
+            command_call = normalize_skill_namespace_alias_call(
+                command_call, self._slash_command_map.keys(), skill_prefix=SKILL_COMMAND_PREFIX
+            )
             command = self._find_slash_command(command_call.name)
             if command is None:
                 # this should not happen actually, the shell should have filtered it out
