@@ -4,6 +4,7 @@ from kimi_cli.wiki.layout import ensure_wiki_dirs
 from kimi_cli.wiki.relationships import (
     MACHINE_RELATIONSHIP_BLOCK_START,
     WikiRelationshipParseError,
+    audit_relationships,
     discover_pages,
     rebuild_relationships,
     resolve_link_target,
@@ -361,3 +362,53 @@ def test_rebuild_relationships_accepts_exact_slug_after_ambiguous_title_candidat
 
     assert "[[alpha--aaaa1111]]" in source_text
     assert "- [[source--cccc3333]] | out=1 | in=0 | isolated=no" in relations_text
+
+
+def test_audit_reports_broken_links(tmp_path: Path) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    page = root / "concepts" / "alpha--aaaa1111.md"
+    page.write_text(
+        "---\n"
+        "source_title: alpha\n"
+        "source_identity: note://alpha\n"
+        "page_kind: concept\n"
+        "page_slug: alpha--aaaa1111\n"
+        "---\n\n"
+        "# Alpha\n\n"
+        "## Summary\n\n"
+        "- Reference [[missing-page--bbbb2222]] from here.\n",
+        encoding="utf-8",
+    )
+
+    result = audit_relationships(root)
+    text = result.audit_path.read_text(encoding="utf-8")
+
+    assert "## Broken Links" in text
+    assert "[[missing-page--bbbb2222]] in [[alpha--aaaa1111]]" in text
+    assert result.broken_links
+
+
+def test_audit_reports_kind_path_mismatch(tmp_path: Path) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    page = root / "concepts" / "alpha--aaaa1111.md"
+    page.write_text(
+        "---\n"
+        "source_title: alpha\n"
+        "source_identity: note://alpha\n"
+        "page_kind: entity\n"
+        "page_slug: alpha--aaaa1111\n"
+        "---\n\n"
+        "# Alpha\n\n"
+        "## Summary\n\n"
+        "- mismatch case.\n",
+        encoding="utf-8",
+    )
+
+    result = audit_relationships(root)
+    text = result.audit_path.read_text(encoding="utf-8")
+
+    assert "## Kind / Path Mismatches" in text
+    assert "[[alpha--aaaa1111]] expects directory 'entities'" in text
+    assert result.path_mismatches

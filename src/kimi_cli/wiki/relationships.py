@@ -38,6 +38,9 @@ class RelationshipBuildResult:
 class RelationshipAuditResult:
     page_count: int
     audit_path: Path
+    broken_links: tuple[str, ...]
+    path_mismatches: tuple[str, ...]
+    missing_index_entries: tuple[str, ...]
 
 
 def discover_pages(root: Path) -> list[WikiPageRecord]:
@@ -109,12 +112,28 @@ def rebuild_relationships(root: Path) -> RelationshipBuildResult:
 def audit_relationships(root: Path) -> RelationshipAuditResult:
     pages = discover_pages(root)
     links_by_slug, backlinks_by_slug = build_relationship_maps(pages)
+    broken_links = collect_broken_links(pages)
+    path_mismatches = collect_path_mismatches(pages)
+    missing_index_entries = collect_missing_index_entries(root, pages)
     audit_path = root / "audit.md"
     audit_path.write_text(
-        render_audit_report(pages, links_by_slug, backlinks_by_slug),
+        render_audit_report(
+            pages,
+            links_by_slug,
+            backlinks_by_slug,
+            broken_links=broken_links,
+            path_mismatches=path_mismatches,
+            missing_index_entries=missing_index_entries,
+        ),
         encoding="utf-8",
     )
-    return RelationshipAuditResult(page_count=len(pages), audit_path=audit_path)
+    return RelationshipAuditResult(
+        page_count=len(pages),
+        audit_path=audit_path,
+        broken_links=tuple(broken_links),
+        path_mismatches=tuple(path_mismatches),
+        missing_index_entries=tuple(missing_index_entries),
+    )
 
 
 def normalize_link_key(value: str) -> str:
@@ -219,7 +238,14 @@ def render_audit_report(
     pages: list[WikiPageRecord],
     links_by_slug: dict[str, list[str]],
     backlinks_by_slug: dict[str, list[str]],
+    *,
+    broken_links: list[str] | None = None,
+    path_mismatches: list[str] | None = None,
+    missing_index_entries: list[str] | None = None,
 ) -> str:
+    broken_links = broken_links or []
+    path_mismatches = path_mismatches or []
+    missing_index_entries = missing_index_entries or []
     isolated_pages = [
         page.slug
         for page in pages
@@ -230,7 +256,65 @@ def render_audit_report(
         lines.extend(f"- [[{slug}]]" for slug in isolated_pages)
     else:
         lines.append("No issues found.")
+    lines.extend(["", "## Broken Links", ""])
+    if broken_links:
+        lines.extend(f"- {item}" for item in broken_links)
+    else:
+        lines.append("None.")
+    lines.extend(["", "## Kind / Path Mismatches", ""])
+    if path_mismatches:
+        lines.extend(f"- {item}" for item in path_mismatches)
+    else:
+        lines.append("None.")
+    lines.extend(["", "## Missing Index Entries", ""])
+    if missing_index_entries:
+        lines.extend(f"- [[{slug}]]" for slug in missing_index_entries)
+    else:
+        lines.append("None.")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def collect_broken_links(pages: list[WikiPageRecord]) -> list[str]:
+    broken: list[str] = []
+    for page in pages:
+        page_links = extract_wikilinks(_body_without_machine_relationship_block(page.body))
+        for candidate in page_links:
+            if resolve_link_target(candidate, pages) is None:
+                broken.append(f"[[{candidate}]] in [[{page.slug}]]")
+    return broken
+
+
+def collect_path_mismatches(pages: list[WikiPageRecord]) -> list[str]:
+    mismatches: list[str] = []
+    for page in pages:
+        expected_dir = WIKI_PAGE_DIRECTORIES[page.page_kind]
+        if page.path.parent.name != expected_dir:
+            mismatches.append(
+                f"[[{page.slug}]] expects directory '{expected_dir}' "
+                f"but is in '{page.path.parent.name}'"
+            )
+    return mismatches
+
+
+def collect_missing_index_entries(root: Path, pages: list[WikiPageRecord]) -> list[str]:
+    index_path = root / "index.md"
+    if not index_path.exists():
+        return [page.slug for page in pages]
+    index_text = index_path.read_text(encoding="utf-8")
+    return [page.slug for page in pages if f"[[{page.slug}]]" not in index_text]
+
+
+def extract_wikilinks(text: str) -> list[str]:
+    pattern = re.compile(r"\[\[([^|\]]+)(?:\|[^\]]+)?\]\]")
+    seen: set[str] = set()
+    links: list[str] = []
+    for match in pattern.findall(text):
+        candidate = match.strip()
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        links.append(candidate)
+    return links
 
 
 def split_frontmatter(text: str, path: Path | None = None) -> tuple[dict[str, str], str]:
