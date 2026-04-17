@@ -328,3 +328,36 @@ def test_rebuild_relationships_treats_page_with_backlinks_but_no_outgoing_as_not
 
     assert "- [[alpha--aaaa1111]] | out=0 | in=1 | isolated=no" in relations_text
     assert "No issues found." in audit_text
+
+
+def test_rebuild_relationships_accepts_exact_slug_after_ambiguous_title_candidate(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    (root / "concepts" / "alpha--aaaa1111.md").write_text(
+        "---\nsource_title: alpha-one\nsource_identity: note://alpha-one\npage_kind: concept\n"
+        "page_slug: alpha--aaaa1111\n---\n\n"
+        "# Alpha\n\n## Summary\n\n- Exact reference alpha--aaaa1111 appears here.\n",
+        encoding="utf-8",
+    )
+    (root / "concepts" / "alpha--bbbb2222.md").write_text(
+        "---\nsource_title: alpha-two\nsource_identity: note://alpha-two\npage_kind: concept\n"
+        "page_slug: alpha--bbbb2222\n---\n\n"
+        "# Alpha\n\n## Summary\n\n- Duplicate title keeps the title ambiguous.\n",
+        encoding="utf-8",
+    )
+    (root / "concepts" / "source--cccc3333.md").write_text(
+        "---\nsource_title: source\nsource_identity: note://source\npage_kind: concept\n"
+        "page_slug: source--cccc3333\n---\n\n"
+        "# Source\n\n## Summary\n\n- Alpha and alpha--aaaa1111 are both mentioned.\n",
+        encoding="utf-8",
+    )
+
+    rebuild_relationships(root)
+
+    source_text = (root / "concepts" / "source--cccc3333.md").read_text(encoding="utf-8")
+    relations_text = (root / "RELATIONS.md").read_text(encoding="utf-8")
+
+    assert "[[alpha--aaaa1111]]" in source_text
+    assert "- [[source--cccc3333]] | out=1 | in=0 | isolated=no" in relations_text

@@ -135,9 +135,11 @@ def collect_page_links(page: WikiPageRecord, pages: list[WikiPageRecord]) -> lis
             normalized_candidate = normalize_link_key(candidate)
             if not normalized_candidate:
                 continue
-            if _contains_normalized_phrase(normalized_body, normalized_candidate):
-                if resolve_link_target(normalized_candidate, pages) == target.slug:
-                    links.append(target.slug)
+            if (
+                _contains_normalized_phrase(normalized_body, normalized_candidate)
+                and resolve_link_target(normalized_candidate, pages) == target.slug
+            ):
+                links.append(target.slug)
                 break
     return links
 
