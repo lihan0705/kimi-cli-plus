@@ -30,13 +30,16 @@ def discover_pages(root: Path) -> list[WikiPageRecord]:
             try:
                 text = page_path.read_text(encoding="utf-8")
                 frontmatter, body = split_frontmatter(text)
-                slug = str(frontmatter["page_slug"])
-                title = extract_page_title(body, slug)
+                slug = str(frontmatter["page_slug"]).strip()
+                if not slug:
+                    raise ValueError("page_slug is missing or empty")
+                base_slug = base_slug_from_page_slug(slug)
+                title = extract_page_title(body, base_slug)
                 normalized_keys = frozenset(
                     {
                         normalize_link_key(slug),
                         normalize_link_key(title),
-                        normalize_link_key(slug.split("--")[0]),
+                        normalize_link_key(base_slug),
                     }
                 )
                 pages.append(
@@ -92,6 +95,11 @@ def extract_page_title(body: str, slug: str) -> str:
             if title:
                 return title
     return slug.replace("-", " ").title()
+
+
+def base_slug_from_page_slug(slug: str) -> str:
+    base_slug, _, _ = slug.partition("--")
+    return base_slug or slug
 
 
 def _parse_frontmatter(lines: list[str]) -> dict[str, str]:
