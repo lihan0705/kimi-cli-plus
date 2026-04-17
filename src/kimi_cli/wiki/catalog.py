@@ -1,0 +1,61 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+
+from .models import WIKI_PAGE_DIRECTORIES
+from .relationships import extract_page_title, split_frontmatter
+
+
+@dataclass(frozen=True)
+class WikiPageSummary:
+    page_kind: str
+    slug: str
+    title: str
+    path: Path
+
+
+@dataclass(frozen=True)
+class WikiPageDocument(WikiPageSummary):
+    content: str
+
+
+@dataclass(frozen=True)
+class DeletePagesResult:
+    deleted_slugs: list[str]
+    missing_slugs: list[str]
+
+
+def list_pages(root: Path) -> list[WikiPageSummary]:
+    pages: list[WikiPageSummary] = []
+    for page_kind, directory in WIKI_PAGE_DIRECTORIES.items():
+        for path in sorted((root / directory).glob("*.md")):
+            text = path.read_text(encoding="utf-8")
+            frontmatter, body = split_frontmatter(text, path)
+            slug = str(frontmatter["page_slug"]).strip()
+            title = extract_page_title(body, slug)
+            pages.append(
+                WikiPageSummary(page_kind=page_kind.value, slug=slug, title=title, path=path)
+            )
+    return pages
+
+
+def read_page(root: Path, slug: str) -> WikiPageDocument:
+    for page in list_pages(root):
+        if page.slug == slug:
+            return WikiPageDocument(**page.__dict__, content=page.path.read_text(encoding="utf-8"))
+    raise FileNotFoundError(f"Wiki page not found: {slug}")
+
+
+def delete_pages(root: Path, slugs: list[str]) -> DeletePagesResult:
+    deleted: list[str] = []
+    missing: list[str] = []
+    by_slug = {page.slug: page for page in list_pages(root)}
+    for slug in slugs:
+        page = by_slug.get(slug)
+        if page is None:
+            missing.append(slug)
+            continue
+        page.path.unlink()
+        deleted.append(slug)
+    return DeletePagesResult(deleted_slugs=deleted, missing_slugs=missing)
