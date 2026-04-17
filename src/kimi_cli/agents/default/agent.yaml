@@ -21,10 +21,7 @@ agent:
     - "kimi_cli.tools.web:SearchWeb"
     - "kimi_cli.tools.web:FetchURL"
     - "kimi_cli.tools.knowledge:WikiIngest"
-    - "kimi_cli.tools.knowledge:WikiSearch"
     - "kimi_cli.tools.knowledge:WikiRead"
-    - "kimi_cli.tools.knowledge:WikiBacklinks"
-    - "kimi_cli.tools.knowledge:WikiRelated"
   subagents:
     coder:
       path: ./sub.yaml

@@ -596,87 +596,85 @@ async def _show_plugins(app: Shell, soul: KimiSoul) -> None:
 
 @registry.command(aliases=["knowledge", "kb"])
 async def wiki(app: Shell, args: str):
-    """Knowledge Base: /wiki [status|list|search <query>]"""
+    """Wiki operations: /wiki [list|read|relink|audit|delete]"""
     from rich.table import Table
-    from rich.text import Text
 
-    from kimi_cli.knowledge import (
-        Category,
-        DocumentStatus,
-        KBStore,
-        ensure_kb_dirs,
-        get_kb_root,
+    from kimi_cli.wiki import (
+        delete_pages,
+        ensure_wiki_dirs,
+        get_wiki_root,
+        list_pages,
+        read_page,
+    )
+    from kimi_cli.wiki.index import rebuild_wiki_index
+    from kimi_cli.wiki.relationships import (
+        WikiRelationshipParseError,
+        audit_relationships,
+        rebuild_relationships,
     )
 
-    root = get_kb_root()
-    ensure_kb_dirs(root)
-    db_path = root / "knowledge.db"
-
-    if not db_path.exists():
-        console.print(
-            "[yellow]Knowledge Base is empty. Use WikiIngest tool to add documents.[/yellow]"
-        )
-        return
-
-    store = KBStore(db_path)
+    root = get_wiki_root()
+    ensure_wiki_dirs(root)
     parts = args.strip().split(maxsplit=1)
-    subcmd = parts[0].lower() if parts else "status"
+    subcmd = parts[0].lower() if parts else "list"
     sub_args = parts[1] if len(parts) > 1 else ""
 
-    if subcmd == "status":
-        docs = store.list_documents()
-        total = len(docs)
-        needs_review = len([d for d in docs if d.status == DocumentStatus.needs_review])
-
-        category_counts: dict[str, int] = {}
-        for cat in Category:
-            category_counts[cat.value] = 0
-        for d in docs:
-            category_counts[d.category.value] = category_counts.get(d.category.value, 0) + 1
-
-        console.print(f"[bold]Knowledge Base[/bold] — {root}")
-        console.print(f"  Total documents: [cyan]{total}[/cyan]")
-        if needs_review:
-            console.print(f"  Needs review: [yellow]{needs_review}[/yellow]")
-        sorted_cats = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
-        for cat, count in sorted_cats:
-            if count > 0:
-                console.print(f"  {cat}: [green]{count}[/green]")
-
-    elif subcmd == "list":
-        docs = store.list_documents()
-        if not docs:
-            console.print("[yellow]No documents in the Knowledge Base.[/yellow]")
+    if subcmd == "list":
+        pages = list_pages(root)
+        if not pages:
+            console.print("[yellow]No wiki pages found.[/yellow]")
             return
 
         table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("ID", style="dim", width=10)
+        table.add_column("Kind")
+        table.add_column("Slug")
         table.add_column("Title")
-        table.add_column("Category")
-        table.add_column("Status")
-        for doc in docs:
-            table.add_row(str(doc.id)[:8], doc.title, doc.category.value, doc.status.value)
+        for page in pages:
+            table.add_row(page.page_kind, page.slug, page.title)
         console.print(table)
 
-    elif subcmd == "search":
+    elif subcmd == "read":
         if not sub_args:
-            console.print("[red]Usage: /wiki search <query>[/red]")
+            console.print("[red]Usage: /wiki read <slug>[/red]")
             return
-        results = store.search(sub_args, limit=10)
-        if not results:
-            console.print(f"[yellow]No results for: {sub_args}[/yellow]")
+        try:
+            page = read_page(root, sub_args.strip())
+        except FileNotFoundError:
+            console.print(f"[red]Wiki page not found: {sub_args.strip()}[/red]")
             return
-        for res in results:
-            console.print(
-                Text.from_markup(
-                    f"  [cyan]{str(res.metadata.id)[:8]}[/cyan] "
-                    f"[bold]{res.metadata.title}[/bold] "
-                    f"[green]({res.metadata.category.value})[/green]"
-                )
-            )
+        console.print(page.content)
+
+    elif subcmd == "relink":
+        try:
+            result = rebuild_relationships(root)
+        except WikiRelationshipParseError as exc:
+            console.print(f"[red]Error: {exc}[/red]")
+            return
+        console.print(f"[green]Rebuilt relationships for {result.page_count} pages.[/green]")
+
+    elif subcmd == "audit":
+        try:
+            result = audit_relationships(root)
+        except WikiRelationshipParseError as exc:
+            console.print(f"[red]Error: {exc}[/red]")
+            return
+        console.print(f"[green]Audit updated at {result.audit_path}[/green]")
+
+    elif subcmd == "delete":
+        slugs = sub_args.split()
+        if not slugs:
+            console.print("[red]Usage: /wiki delete <slug1> [slug2 ...][/red]")
+            return
+        result = delete_pages(root, slugs)
+        rebuild_wiki_index(root)
+        rebuild_relationships(root)
+        deleted = ", ".join(result.deleted_slugs) if result.deleted_slugs else "(none)"
+        console.print(f"[green]Deleted:[/green] {deleted}")
+        if result.missing_slugs:
+            console.print(f"[yellow]Missing:[/yellow] {', '.join(result.missing_slugs)}")
 
     else:
-        console.print("[red]Usage: /wiki [status|list|search <query>][/red]")
+        console.print("[red]Usage: /wiki [list|read <slug>|relink|audit|delete <slug...>][/red]")
 
 
 @registry.command
