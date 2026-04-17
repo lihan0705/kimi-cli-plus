@@ -4,8 +4,12 @@ from kimi_cli.wiki.catalog import delete_pages, list_pages, read_page
 from kimi_cli.wiki.layout import ensure_wiki_dirs
 
 
-def _write_page(root: Path, kind: str, slug: str, title: str) -> Path:
+def _write_page(root: Path, kind: str, slug: str, title: str, *, include_h1: bool = True) -> Path:
     page = root / f"{kind}s" / f"{slug}.md"
+    body = ""
+    if include_h1:
+        body += f"# {title}\n\n"
+    body += "## Summary\n\n- Summary line.\n"
     page.write_text(
         "---\n"
         f"source_title: {title}\n"
@@ -13,9 +17,7 @@ def _write_page(root: Path, kind: str, slug: str, title: str) -> Path:
         f"page_kind: {kind}\n"
         f"page_slug: {slug}\n"
         "---\n\n"
-        f"# {title}\n\n"
-        "## Summary\n\n"
-        "- Summary line.\n",
+        f"{body}",
         encoding="utf-8",
     )
     return page
@@ -30,6 +32,16 @@ def test_list_pages_returns_kind_slug_and_title(tmp_path: Path) -> None:
 
     assert [page.slug for page in pages] == ["alpha--aaaa1111"]
     assert pages[0].page_kind == "concept"
+    assert pages[0].title == "Alpha"
+
+
+def test_list_pages_uses_base_slug_title_when_h1_is_missing(tmp_path: Path) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    _write_page(root, "concept", "alpha--aaaa1111", "Alpha", include_h1=False)
+
+    pages = list_pages(root)
+
     assert pages[0].title == "Alpha"
 
 
@@ -53,4 +65,18 @@ def test_delete_pages_removes_file_and_reports_missing(tmp_path: Path) -> None:
 
     assert result.deleted_slugs == ["alpha--aaaa1111"]
     assert result.missing_slugs == ["missing-page"]
+    assert not (root / "concepts" / "alpha--aaaa1111.md").exists()
+
+
+def test_delete_pages_treats_duplicate_slug_as_missing_after_first_delete(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    _write_page(root, "concept", "alpha--aaaa1111", "Alpha")
+
+    result = delete_pages(root, ["alpha--aaaa1111", "alpha--aaaa1111", "missing-page"])
+
+    assert result.deleted_slugs == ["alpha--aaaa1111"]
+    assert result.missing_slugs == ["alpha--aaaa1111", "missing-page"]
     assert not (root / "concepts" / "alpha--aaaa1111.md").exists()

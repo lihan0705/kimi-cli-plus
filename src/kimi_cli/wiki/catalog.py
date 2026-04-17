@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .models import WIKI_PAGE_DIRECTORIES
-from .relationships import extract_page_title, split_frontmatter
+from .relationships import base_slug_from_page_slug, extract_page_title, split_frontmatter
 
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ def list_pages(root: Path) -> list[WikiPageSummary]:
             text = path.read_text(encoding="utf-8")
             frontmatter, body = split_frontmatter(text, path)
             slug = str(frontmatter["page_slug"]).strip()
-            title = extract_page_title(body, slug)
+            title = extract_page_title(body, base_slug_from_page_slug(slug))
             pages.append(
                 WikiPageSummary(page_kind=page_kind.value, slug=slug, title=title, path=path)
             )
@@ -53,7 +53,7 @@ def delete_pages(root: Path, slugs: list[str]) -> DeletePagesResult:
     by_slug = {page.slug: page for page in list_pages(root)}
     for slug in slugs:
         page = by_slug.get(slug)
-        if page is None:
+        if page is None or not page.path.exists():
             missing.append(slug)
             continue
         page.path.unlink()
