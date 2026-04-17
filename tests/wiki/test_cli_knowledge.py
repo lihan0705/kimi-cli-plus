@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from kimi_cli.cli.knowledge import cli
@@ -44,3 +45,55 @@ def test_wiki_audit_prints_summary(tmp_path: Path, monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert "Audit updated at" in result.stdout
+
+
+def test_wiki_audit_does_not_mutate_pages_or_relations(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    monkeypatch.setenv("KIMI_WIKI_ROOT", str(root))
+
+    page = root / "concepts" / "alpha--aaaa1111.md"
+    page.write_text(
+        "---\n"
+        "source_title: alpha\n"
+        "source_identity: note://alpha\n"
+        "page_kind: concept\n"
+        "page_slug: alpha--aaaa1111\n"
+        "---\n\n"
+        "# Alpha\n\n"
+        "Existing body.\n",
+        encoding="utf-8",
+    )
+    relations = root / "RELATIONS.md"
+    relations.write_text("# preexisting relations\n", encoding="utf-8")
+
+    page_before = page.read_text(encoding="utf-8")
+    relations_before = relations.read_text(encoding="utf-8")
+
+    result = CliRunner().invoke(cli, ["audit"])
+
+    assert result.exit_code == 0
+    assert "Audit updated at" in result.stdout
+    assert page.read_text(encoding="utf-8") == page_before
+    assert relations.read_text(encoding="utf-8") == relations_before
+
+
+@pytest.mark.parametrize("command", ["relink", "audit"])
+def test_wiki_relationship_commands_report_malformed_pages_cleanly(
+    tmp_path: Path, monkeypatch, command: str
+) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    monkeypatch.setenv("KIMI_WIKI_ROOT", str(root))
+
+    broken = root / "concepts" / "broken.md"
+    broken.write_text(
+        "---\nsource_title: broken\npage_kind: concept\n---\n\n# Broken\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(cli, [command])
+
+    assert result.exit_code == 0
+    assert "Error:" in result.stdout
+    assert "Traceback" not in result.stdout

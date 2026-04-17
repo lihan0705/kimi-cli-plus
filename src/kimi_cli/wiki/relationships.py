@@ -34,6 +34,12 @@ class RelationshipBuildResult:
     audit_path: Path
 
 
+@dataclass(frozen=True)
+class RelationshipAuditResult:
+    page_count: int
+    audit_path: Path
+
+
 def discover_pages(root: Path) -> list[WikiPageRecord]:
     pages: list[WikiPageRecord] = []
     for directory in WIKI_PAGE_DIRECTORIES.values():
@@ -70,15 +76,7 @@ def discover_pages(root: Path) -> list[WikiPageRecord]:
 
 def rebuild_relationships(root: Path) -> RelationshipBuildResult:
     pages = discover_pages(root)
-    links_by_slug: dict[str, list[str]] = {}
-    backlinks_by_slug: dict[str, list[str]] = {page.slug: [] for page in pages}
-
-    for page in pages:
-        links = collect_page_links(page, pages)
-        links_by_slug[page.slug] = links
-        for target_slug in links:
-            if target_slug in backlinks_by_slug:
-                backlinks_by_slug[target_slug].append(page.slug)
+    links_by_slug, backlinks_by_slug = build_relationship_maps(pages)
 
     rewritten_pages: list[Path] = []
     for page in pages:
@@ -108,6 +106,17 @@ def rebuild_relationships(root: Path) -> RelationshipBuildResult:
     )
 
 
+def audit_relationships(root: Path) -> RelationshipAuditResult:
+    pages = discover_pages(root)
+    links_by_slug, backlinks_by_slug = build_relationship_maps(pages)
+    audit_path = root / "audit.md"
+    audit_path.write_text(
+        render_audit_report(pages, links_by_slug, backlinks_by_slug),
+        encoding="utf-8",
+    )
+    return RelationshipAuditResult(page_count=len(pages), audit_path=audit_path)
+
+
 def normalize_link_key(value: str) -> str:
     lowered = value.lower().strip()
     collapsed = re.sub(r"[\s_-]+", " ", lowered)
@@ -121,6 +130,22 @@ def resolve_link_target(candidate: str, pages: list[WikiPageRecord]) -> str | No
     if len(unique_matches) == 1:
         return unique_matches[0]
     return None
+
+
+def build_relationship_maps(
+    pages: list[WikiPageRecord],
+) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    links_by_slug: dict[str, list[str]] = {}
+    backlinks_by_slug: dict[str, list[str]] = {page.slug: [] for page in pages}
+
+    for page in pages:
+        links = collect_page_links(page, pages)
+        links_by_slug[page.slug] = links
+        for target_slug in links:
+            if target_slug in backlinks_by_slug:
+                backlinks_by_slug[target_slug].append(page.slug)
+
+    return links_by_slug, backlinks_by_slug
 
 
 def collect_page_links(page: WikiPageRecord, pages: list[WikiPageRecord]) -> list[str]:
