@@ -682,6 +682,38 @@ Replace specific strings within a specified file.
                     "type": "object",
                 },
             ),
+            Tool(
+                name="WikiIngest",
+                description="""\
+Ingest a URL or a local file (Markdown, PDF, Text) into the Knowledge Base.
+This tool will automatically convert the content to Markdown, classify it using an LLM, and save it with structured metadata.
+Use this tool when the user asks to "save", "archive", or "ingest" information, or when you find valuable information that should be remembered long-term.
+""",
+                parameters={
+                    "properties": {
+                        "source": {
+                            "description": "The URL or local file path to ingest into the Knowledge Base.",
+                            "type": "string",
+                        }
+                    },
+                    "required": ["source"],
+                    "type": "object",
+                },
+            ),
+            Tool(
+                name="WikiRead",
+                description="Read the full content of a wiki page by slug.",
+                parameters={
+                    "properties": {
+                        "slug": {
+                            "description": "The wiki page slug to read.",
+                            "type": "string",
+                        }
+                    },
+                    "required": ["slug"],
+                    "type": "object",
+                },
+            ),
         ]
     )
 
@@ -853,6 +885,8 @@ At any time, you should be HELPFUL and POLITE, CONCISE and ACCURATE, PATIENT and
                     "StrReplaceFile",
                     "SearchWeb",
                     "FetchURL",
+                    "WikiIngest",
+                    "WikiRead",
                 ],
             ),
         ]

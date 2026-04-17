@@ -91,6 +91,11 @@ def test_initialize_handshake(tmp_path) -> None:
                             "aliases": [],
                         },
                         {
+                            "name": "skill:llm-wiki",
+                            "description": "Markdown-first wiki operations [ingest|relink|audit|list|read|delete|index|orient|import-session]. Distill sources into canonical pages, then maintain index/log and bidirectional link quality.",
+                            "aliases": [],
+                        },
+                        {
                             "name": "skill:mcp-builder",
                             "description": "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services, whether in Python (FastMCP) or Node/TypeScript (MCP SDK).",
                             "aliases": [],
@@ -185,6 +190,11 @@ def test_initialize_external_tool_conflict(tmp_path) -> None:
                         {
                             "name": "skill:kimi-cli-help",
                             "description": "Answer Kimi Code CLI usage, configuration, and troubleshooting questions. Use when user asks about Kimi Code CLI installation, setup, configuration, slash commands, keyboard shortcuts, MCP integration, providers, environment variables, how something works internally, or any questions about Kimi Code CLI itself.",
+                            "aliases": [],
+                        },
+                        {
+                            "name": "skill:llm-wiki",
+                            "description": "Markdown-first wiki operations [ingest|relink|audit|list|read|delete|index|orient|import-session]. Distill sources into canonical pages, then maintain index/log and bidirectional link quality.",
                             "aliases": [],
                         },
                         {
