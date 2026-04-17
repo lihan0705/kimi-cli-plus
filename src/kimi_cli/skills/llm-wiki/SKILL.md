@@ -13,10 +13,12 @@ Turn raw source material into a durable Markdown wiki page in the filesystem-fir
 2. Choose or normalize a stable page slug.
 3. Distill the source into a Markdown page under the matching directory.
 4. Refresh `index.md` from the current page set.
-5. Append an entry to `log.md` describing the source and written page.
+5. Run relink/audit maintenance so bidirectional link quality is visible and fixable.
+6. Append an entry to `log.md` describing the source and written page.
 
 ## Rules
 - Treat the filesystem as canonical. Do not require a database write for the happy path.
+- Use wiki modules and commands only. Do not route through legacy `knowledge` package paths.
 - Prefer updating an existing page when the slug already exists instead of creating variants.
 - Keep provenance lightweight but explicit in the page frontmatter or body.
 - If the source is noisy, preserve only the useful distilled content in the page and keep raw archives elsewhere.
@@ -24,4 +26,5 @@ Turn raw source material into a durable Markdown wiki page in the filesystem-fir
 ## Output Shape
 - Page file: `<wiki-root>/<page-kind-directory>/<page-slug>.md`
 - Index entry: `[[page-slug]]` in `index.md`
+- Relationship hygiene: `relink` and `audit` output for orphan/broken/path mismatch checks
 - Log entry: timestamped line in `log.md`

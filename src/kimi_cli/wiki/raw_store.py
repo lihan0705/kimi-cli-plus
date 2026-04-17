@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from kimi_cli.knowledge.models import RawSessionRecord
-from kimi_cli.wiki.models import RawSourceKind, WikiSourceRef
+from kimi_cli.wiki.models import RawSessionRecord, RawSourceKind, WikiSourceRef
 
 
 @dataclass(slots=True)

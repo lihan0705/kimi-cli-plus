@@ -32,3 +32,7 @@ class WikiSourceRef(BaseModel):
     kind: RawSourceKind
     source_id: str
     original_path: str = ""
+
+
+class RawSessionRecord(BaseModel):
+    source: WikiSourceRef

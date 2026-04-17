@@ -1,8 +1,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from kimi_cli.knowledge.models import RawSessionRecord
 from kimi_cli.wiki.layout import ensure_wiki_dirs
+from kimi_cli.wiki.models import RawSessionRecord
 from kimi_cli.wiki.session_import import discover_legacy_sessions, import_session_file
 
 
