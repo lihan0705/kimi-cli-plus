@@ -6,6 +6,9 @@ from pathlib import Path
 
 from .models import WIKI_PAGE_DIRECTORIES, WikiPageKind
 
+MACHINE_RELATIONSHIP_BLOCK_START = "<!-- kimi-cli:wiki-relationships:start -->"
+MACHINE_RELATIONSHIP_BLOCK_END = "<!-- kimi-cli:wiki-relationships:end -->"
+
 
 class WikiRelationshipParseError(ValueError):
     def __init__(self, path: Path, message: str) -> None:
@@ -93,7 +96,10 @@ def rebuild_relationships(root: Path) -> RelationshipBuildResult:
         render_relations_report(pages, links_by_slug, backlinks_by_slug),
         encoding="utf-8",
     )
-    audit_path.write_text(render_audit_report(pages, links_by_slug), encoding="utf-8")
+    audit_path.write_text(
+        render_audit_report(pages, links_by_slug, backlinks_by_slug),
+        encoding="utf-8",
+    )
     return RelationshipBuildResult(
         page_count=len(pages),
         rewritten_pages=tuple(rewritten_pages),
@@ -118,7 +124,7 @@ def resolve_link_target(candidate: str, pages: list[WikiPageRecord]) -> str | No
 
 
 def collect_page_links(page: WikiPageRecord, pages: list[WikiPageRecord]) -> list[str]:
-    normalized_body = normalize_link_key(_body_without_relationship_sections(page.body))
+    normalized_body = normalize_link_key(_body_without_machine_relationship_block(page.body))
     links: list[str] = []
     for target in pages:
         if target.slug == page.slug:
@@ -177,7 +183,7 @@ def render_relations_report(
     for page in pages:
         outgoing = len(links_by_slug[page.slug])
         incoming = len(backlinks_by_slug[page.slug])
-        isolated = "yes" if outgoing == 0 and incoming == 0 else "no"
+        isolated = "yes" if _is_isolated(outgoing, incoming) else "no"
         lines.append(f"- [[{page.slug}]] | out={outgoing} | in={incoming} | isolated={isolated}")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -185,8 +191,13 @@ def render_relations_report(
 def render_audit_report(
     pages: list[WikiPageRecord],
     links_by_slug: dict[str, list[str]],
+    backlinks_by_slug: dict[str, list[str]],
 ) -> str:
-    isolated_pages = [page.slug for page in pages if not links_by_slug[page.slug]]
+    isolated_pages = [
+        page.slug
+        for page in pages
+        if _is_isolated(len(links_by_slug[page.slug]), len(backlinks_by_slug[page.slug]))
+    ]
     lines = ["# Wiki Audit", "", "## Isolated Pages", ""]
     if isolated_pages:
         lines.extend(f"- [[{slug}]]" for slug in isolated_pages)
@@ -259,23 +270,12 @@ def _split_frontmatter_text(text: str, path: Path) -> tuple[str, str]:
     raise WikiRelationshipParseError(path, "unterminated frontmatter")
 
 
-def _body_without_relationship_sections(body: str) -> str:
-    lines = body.splitlines()
-    kept_lines: list[str] = []
-    skipping = False
-    owned_headings = {"## Links", "## Backlinks"}
-    for line in lines:
-        stripped = line.strip()
-        if stripped in owned_headings:
-            skipping = True
-            continue
-        if skipping and stripped.startswith("## "):
-            if stripped in owned_headings:
-                continue
-            skipping = False
-        if not skipping:
-            kept_lines.append(line)
-    return "\n".join(kept_lines)
+def _body_without_machine_relationship_block(body: str) -> str:
+    return re.sub(
+        _machine_relationship_block_pattern(),
+        "",
+        body,
+    ).rstrip()
 
 
 def _rewrite_relationship_body(
@@ -283,14 +283,15 @@ def _rewrite_relationship_body(
     outgoing_slugs: list[str],
     backlink_slugs: list[str],
 ) -> str:
-    stripped_body = _body_without_relationship_sections(body).rstrip()
-    sections = [
-        render_links_section(outgoing_slugs).rstrip(),
-        render_backlinks_section(backlink_slugs).rstrip(),
-    ]
+    machine_block = render_relationship_block(outgoing_slugs, backlink_slugs)
+    rewritten_body, replacements = _machine_relationship_block_pattern().subn(machine_block, body)
+    if replacements:
+        return rewritten_body.rstrip() + "\n"
+
+    stripped_body = _body_without_machine_relationship_block(body)
     if not stripped_body:
-        return "\n\n".join(sections).rstrip() + "\n"
-    return stripped_body + "\n\n" + "\n\n".join(sections).rstrip() + "\n"
+        return machine_block
+    return stripped_body.rstrip() + "\n\n" + machine_block
 
 
 def _contains_normalized_phrase(text: str, phrase: str) -> bool:
@@ -298,3 +299,26 @@ def _contains_normalized_phrase(text: str, phrase: str) -> bool:
         return False
     pattern = rf"(?<![a-z0-9]){re.escape(phrase)}(?![a-z0-9])"
     return re.search(pattern, text) is not None
+
+
+def render_relationship_block(outgoing_slugs: list[str], backlink_slugs: list[str]) -> str:
+    lines = [
+        MACHINE_RELATIONSHIP_BLOCK_START,
+        "",
+        render_links_section(outgoing_slugs).rstrip(),
+        "",
+        render_backlinks_section(backlink_slugs).rstrip(),
+        "",
+        MACHINE_RELATIONSHIP_BLOCK_END,
+    ]
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _machine_relationship_block_pattern() -> re.Pattern[str]:
+    start = re.escape(MACHINE_RELATIONSHIP_BLOCK_START)
+    end = re.escape(MACHINE_RELATIONSHIP_BLOCK_END)
+    return re.compile(rf"(?ms)^[ \t]*{start}\n.*?^[ \t]*{end}\n?")
+
+
+def _is_isolated(outgoing: int, incoming: int) -> bool:
+    return outgoing == 0 and incoming == 0

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from kimi_cli.wiki.layout import ensure_wiki_dirs
 from kimi_cli.wiki.relationships import (
+    MACHINE_RELATIONSHIP_BLOCK_START,
     WikiRelationshipParseError,
     discover_pages,
     rebuild_relationships,
@@ -234,6 +235,96 @@ def test_rebuild_relationships_writes_links_backlinks_relations_and_audit(
     assert "## Links" in first_page
     assert "[[agent-memory--ef567890]]" in first_page
     assert "## Backlinks" in first_page
+    assert MACHINE_RELATIONSHIP_BLOCK_START in first_page
     assert "retrieval-augmented-generation--abcd1234" in relations_text
     assert "No issues found." in audit_text
     assert result.page_count == 2
+
+
+def test_rebuild_relationships_preserves_user_authored_link_headings_outside_machine_block(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    (root / "concepts" / "alpha--aaaa1111.md").write_text(
+        "---\nsource_title: alpha\nsource_identity: note://alpha\npage_kind: concept\n"
+        "page_slug: alpha--aaaa1111\n---\n\n"
+        "# Alpha\n\n"
+        "## Summary\n\n"
+        "- Beta is mentioned here to create a relationship.\n\n"
+        "## Links\n\n"
+        "- user-authored link note\n\n"
+        "## Backlinks\n\n"
+        "- user-authored backlink note\n",
+        encoding="utf-8",
+    )
+    (root / "concepts" / "beta--bbbb2222.md").write_text(
+        "---\nsource_title: beta\nsource_identity: note://beta\npage_kind: concept\n"
+        "page_slug: beta--bbbb2222\n---\n\n"
+        "# Beta\n\n## Summary\n\n- Nothing else.\n",
+        encoding="utf-8",
+    )
+
+    result = rebuild_relationships(root)
+    alpha_text = (root / "concepts" / "alpha--aaaa1111.md").read_text(encoding="utf-8")
+
+    assert "- user-authored link note" in alpha_text
+    assert "- user-authored backlink note" in alpha_text
+    assert MACHINE_RELATIONSHIP_BLOCK_START in alpha_text
+    assert "[[beta--bbbb2222]]" in alpha_text
+    assert result.rewritten_pages
+
+
+def test_rebuild_relationships_is_idempotent(tmp_path: Path) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    (root / "concepts" / "alpha--aaaa1111.md").write_text(
+        "---\nsource_title: alpha\nsource_identity: note://alpha\npage_kind: concept\n"
+        "page_slug: alpha--aaaa1111\n---\n\n"
+        "# Alpha\n\n## Summary\n\n- Beta is mentioned here.\n",
+        encoding="utf-8",
+    )
+    (root / "concepts" / "beta--bbbb2222.md").write_text(
+        "---\nsource_title: beta\nsource_identity: note://beta\npage_kind: concept\n"
+        "page_slug: beta--bbbb2222\n---\n\n"
+        "# Beta\n\n## Summary\n\n- Nothing else.\n",
+        encoding="utf-8",
+    )
+
+    first_result = rebuild_relationships(root)
+    alpha_path = root / "concepts" / "alpha--aaaa1111.md"
+    first_text = alpha_path.read_text(encoding="utf-8")
+
+    second_result = rebuild_relationships(root)
+    second_text = alpha_path.read_text(encoding="utf-8")
+
+    assert first_result.rewritten_pages
+    assert second_result.rewritten_pages == tuple()
+    assert second_text == first_text
+
+
+def test_rebuild_relationships_treats_page_with_backlinks_but_no_outgoing_as_not_isolated(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    (root / "concepts" / "alpha--aaaa1111.md").write_text(
+        "---\nsource_title: alpha\nsource_identity: note://alpha\npage_kind: concept\n"
+        "page_slug: alpha--aaaa1111\n---\n\n"
+        "# Alpha\n\n## Summary\n\n- No outgoing links here.\n",
+        encoding="utf-8",
+    )
+    (root / "concepts" / "beta--bbbb2222.md").write_text(
+        "---\nsource_title: beta\nsource_identity: note://beta\npage_kind: concept\n"
+        "page_slug: beta--bbbb2222\n---\n\n"
+        "# Beta\n\n## Summary\n\n- Alpha is mentioned here.\n",
+        encoding="utf-8",
+    )
+
+    rebuild_relationships(root)
+
+    relations_text = (root / "RELATIONS.md").read_text(encoding="utf-8")
+    audit_text = (root / "audit.md").read_text(encoding="utf-8")
+
+    assert "- [[alpha--aaaa1111]] | out=0 | in=1 | isolated=no" in relations_text
+    assert "No issues found." in audit_text
