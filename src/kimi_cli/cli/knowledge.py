@@ -9,7 +9,12 @@ from rich.table import Table
 
 from kimi_cli.wiki import delete_pages, ensure_wiki_dirs, get_wiki_root, list_pages, read_page
 from kimi_cli.wiki.index import rebuild_wiki_index
-from kimi_cli.wiki.ingest import WikiSourceLoadError, distill_source_to_page, load_source_material
+from kimi_cli.wiki.ingest import (
+    WikiSourceLoadError,
+    distill_source_to_page,
+    load_session_material,
+    load_source_material,
+)
 from kimi_cli.wiki.relationships import (
     WikiRelationshipParseError,
     audit_relationships,
@@ -107,6 +112,9 @@ def ingest(
             page_kind="concept",
             page_slug=material.source_title,
             source_identity=material.source_identity,
+            source_kind=material.source_kind,
+            parser_name=material.parser_name,
+            quality_flags=material.quality_flags,
         )
     except Exception as exc:  # pragma: no cover - unexpected filesystem failures
         typer.echo(f"Error: Ingestion failed: {exc}")
@@ -171,5 +179,19 @@ def import_session(
     root = get_wiki_root()
     ensure_wiki_dirs(root)
     archived = import_session_file(root, Path(source), session_id=session_id)
+    material = load_session_material(archived.raw_path, session_id=session_id)
+    result = distill_source_to_page(
+        root=root,
+        source_text=material.source_text,
+        source_title=material.source_title,
+        page_kind="query",
+        page_slug=session_id,
+        source_identity=material.source_identity,
+        source_kind=material.source_kind,
+        parser_name=material.parser_name,
+        quality_flags=material.quality_flags,
+    )
     typer.echo(f"Archived session to {archived.raw_path}")
     typer.echo(f"Metadata written to {archived.metadata_path}")
+    typer.echo(f"Distilled session into wiki page: [[{result.page_slug}]]")
+    typer.echo(f"Page path: {result.page_path}")

@@ -4,12 +4,21 @@ from kimi_cli.wiki.catalog import delete_pages, list_pages, read_page
 from kimi_cli.wiki.layout import ensure_wiki_dirs
 
 
-def _write_page(root: Path, kind: str, slug: str, title: str, *, include_h1: bool = True) -> Path:
+def _write_page(
+    root: Path,
+    kind: str,
+    slug: str,
+    title: str,
+    *,
+    include_h1: bool = True,
+    body: str | None = None,
+) -> Path:
     page = root / f"{kind}s" / f"{slug}.md"
-    body = ""
-    if include_h1:
-        body += f"# {title}\n\n"
-    body += "## Summary\n\n- Summary line.\n"
+    if body is None:
+        body = ""
+        if include_h1:
+            body += f"# {title}\n\n"
+        body += "## Summary\n\n- Summary line.\n"
     page.write_text(
         "---\n"
         f"source_title: {title}\n"
@@ -55,6 +64,17 @@ def test_read_page_resolves_by_slug(tmp_path: Path) -> None:
 
     assert page.slug == "alpha--aaaa1111"
     assert "# Alpha" in page.content
+
+
+def test_read_page_omits_frontmatter_from_display_content(tmp_path: Path) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    _write_page(root, "concept", "alpha--aaaa1111", "Alpha")
+
+    page = read_page(root, "alpha--aaaa1111")
+
+    assert not page.content.startswith("---\n")
+    assert page.content.startswith("# Alpha")
 
 
 def test_delete_pages_removes_file_and_reports_missing(tmp_path: Path) -> None:
@@ -126,3 +146,26 @@ def test_list_pages_truncates_summary_preview(tmp_path: Path) -> None:
 
     assert pages[0].summary_preview.endswith("...")
     assert len(pages[0].summary_preview) == 80
+
+
+def test_list_pages_strips_markdown_noise_from_summary_preview(tmp_path: Path) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    _write_page(
+        root,
+        "concept",
+        "alpha--aaaa1111",
+        "Alpha",
+        body=(
+            "# Alpha\n\n"
+            "## Summary\n\n"
+            '- Use `qmd doc-grep papers/attention-is-all-you-need.pdf "self-attention"`.\n'
+            "- Alpha uses **BM25 retrieval** and [reranking](https://example.com) for search.\n"
+        ),
+    )
+
+    pages = list_pages(root)
+
+    assert "`" not in pages[0].summary_preview
+    assert "[" not in pages[0].summary_preview
+    assert "BM25 retrieval" in pages[0].summary_preview

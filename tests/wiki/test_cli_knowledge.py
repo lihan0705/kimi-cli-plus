@@ -132,6 +132,31 @@ def test_wiki_delete_removes_page_and_refreshes_reports(tmp_path: Path, monkeypa
     assert (root / "RELATIONS.md").exists()
 
 
+def test_wiki_import_session_archives_and_distills_page(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    monkeypatch.setenv("KIMI_WIKI_ROOT", str(root))
+
+    session = tmp_path / "session.jsonl"
+    session.write_text(
+        '{"role":"user","content":"Summarize wiki ingest."}\n'
+        '{"role":"assistant","content":"We should improve source normalization."}\n',
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(cli, ["import-session", "--session-id", "sess_100", str(session)])
+
+    assert result.exit_code == 0
+    assert "Archived session to" in result.stdout
+    assert "Distilled session into wiki page" in result.stdout
+    pages = list((root / "queries").glob("*.md"))
+    assert len(pages) == 1
+    page_text = pages[0].read_text(encoding="utf-8")
+    assert "# Session sess_100" in page_text
+    assert "## Summary" in page_text
+    assert "## Section Map" in page_text
+
+
 @pytest.mark.parametrize("command", ["relink", "audit"])
 def test_wiki_relationship_commands_report_malformed_pages_cleanly(
     tmp_path: Path, monkeypatch, command: str

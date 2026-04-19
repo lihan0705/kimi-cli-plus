@@ -50,6 +50,9 @@ class WikiIngest(CallableTool2[Params]):
                 page_kind="concept",
                 page_slug=material.source_title,
                 source_identity=material.source_identity,
+                source_kind=material.source_kind,
+                parser_name=material.parser_name,
+                quality_flags=material.quality_flags,
             )
 
             msg = (

@@ -36,6 +36,39 @@ def test_discover_pages_indexes_slug_title_and_aliases(tmp_path: Path) -> None:
     assert "retrieval augmented generation" in pages[0].normalized_keys
 
 
+def test_discover_pages_accepts_yaml_list_frontmatter(tmp_path: Path) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    page = root / "concepts" / "retrieval-augmented-generation--abcd1234.md"
+    page.write_text(
+        "---\n"
+        "title: Retrieval Augmented Generation\n"
+        "aliases:\n"
+        "  - RAG\n"
+        "  - Retrieval Augmented Generation\n"
+        "tags:\n"
+        "  - retrieval\n"
+        "  - generation\n"
+        "entities:\n"
+        "  - BM25\n"
+        "source_title: rag-note\n"
+        "source_identity: note://rag\n"
+        "page_kind: concept\n"
+        "page_slug: retrieval-augmented-generation--abcd1234\n"
+        "---\n\n"
+        "# Retrieval Augmented Generation\n\n"
+        "## Summary\n\n"
+        "- Uses external retrieval.\n",
+        encoding="utf-8",
+    )
+
+    pages = discover_pages(root)
+
+    assert len(pages) == 1
+    assert pages[0].slug == "retrieval-augmented-generation--abcd1234"
+    assert pages[0].title == "Retrieval Augmented Generation"
+
+
 def test_resolve_link_target_returns_unique_slug_only_for_safe_match(tmp_path: Path) -> None:
     root = tmp_path / "wiki"
     ensure_wiki_dirs(root)

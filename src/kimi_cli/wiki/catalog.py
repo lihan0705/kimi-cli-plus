@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -50,7 +51,9 @@ def list_pages(root: Path) -> list[WikiPageSummary]:
 def read_page(root: Path, slug: str) -> WikiPageDocument:
     for page in list_pages(root):
         if page.slug == slug:
-            return WikiPageDocument(**page.__dict__, content=page.path.read_text(encoding="utf-8"))
+            text = page.path.read_text(encoding="utf-8")
+            _, body = split_frontmatter(text, page.path)
+            return WikiPageDocument(**page.__dict__, content=body.lstrip())
     raise FileNotFoundError(f"Wiki page not found: {slug}")
 
 
@@ -82,8 +85,14 @@ def extract_summary_preview(body: str, *, limit: int = 80) -> str:
         if line.startswith("#"):
             break
         if line.startswith("- "):
-            return _truncate_summary(line[2:].strip(), limit=limit)
-        return _truncate_summary(line, limit=limit)
+            candidate = _clean_preview_text(line[2:].strip())
+            if _is_preview_noise_text(candidate):
+                continue
+            return _truncate_summary(candidate, limit=limit)
+        candidate = _clean_preview_text(line)
+        if _is_preview_noise_text(candidate):
+            continue
+        return _truncate_summary(candidate, limit=limit)
     return "-"
 
 
@@ -91,3 +100,19 @@ def _truncate_summary(value: str, *, limit: int) -> str:
     if len(value) <= limit:
         return value
     return value[: limit - 3].rstrip() + "..."
+
+
+def _clean_preview_text(value: str) -> str:
+    cleaned = value
+    cleaned = cleaned.replace("**", "").replace("__", "")
+    cleaned = cleaned.replace("`", "")
+    cleaned = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def _is_preview_noise_text(value: str) -> bool:
+    lowered = value.lower()
+    if re.search(r"\b(qmd|curl|python|uv|pip)\b", lowered):
+        return True
+    return re.search(r"\b(line:\d+|\w+://|localhost:\d+)\b", lowered) is not None

@@ -99,3 +99,35 @@ async def test_llm_wiki_ingest_command_creates_page(tmp_path: Path, monkeypatch)
         await ret
 
     assert list((root / "concepts").glob("*.md"))
+
+
+@pytest.mark.asyncio
+async def test_llm_wiki_import_session_defaults_to_loaded_session(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "wiki"
+    ensure_wiki_dirs(root)
+    monkeypatch.setenv("KIMI_WIKI_ROOT", str(root))
+
+    session_dir = tmp_path / "sessions" / "sess-current"
+    session_dir.mkdir(parents=True)
+    context_file = session_dir / "context.jsonl"
+    context_file.write_text(
+        '{"role":"user","content":"Summarize wiki ingest."}\n'
+        '{"role":"assistant","content":"Improve normalization first."}\n',
+        encoding="utf-8",
+    )
+
+    shell = Mock()
+    shell.soul = Mock()
+    shell.soul.runtime.session.id = "sess-current"
+    shell.soul.runtime.session.context_file = context_file
+    monkeypatch.setattr("kimi_cli.ui.shell.slash.ensure_kimi_soul", lambda app: shell.soul)
+
+    command = shell_slash_registry.find_command("llm-wiki:import-session")
+    assert command is not None
+    ret = command.func(shell, "")
+    if isinstance(ret, Awaitable):
+        await ret
+
+    assert list((root / "queries").glob("*.md"))

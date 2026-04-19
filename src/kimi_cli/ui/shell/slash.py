@@ -611,6 +611,7 @@ async def wiki(app: Shell, args: str):
     from kimi_cli.wiki.ingest import (
         WikiSourceLoadError,
         distill_source_to_page,
+        load_session_material,
         load_source_material,
     )
     from kimi_cli.wiki.relationships import (
@@ -690,6 +691,9 @@ async def wiki(app: Shell, args: str):
                 page_kind="concept",
                 page_slug=material.source_title,
                 source_identity=material.source_identity,
+                source_kind=material.source_kind,
+                parser_name=material.parser_name,
+                quality_flags=material.quality_flags,
             )
         except Exception as exc:  # pragma: no cover - unexpected filesystem failures
             console.print(f"[red]Error: Ingestion failed: {exc}[/red]")
@@ -732,12 +736,18 @@ async def wiki(app: Shell, args: str):
 
     elif subcmd == "import-session":
         session_parts = sub_args.split(maxsplit=2)
-        if len(session_parts) < 2:
-            console.print(
-                "[red]Usage: /wiki import-session <session-id> <session-jsonl-path>[/red]"
-            )
+        soul = ensure_kimi_soul(app)
+        if soul is None:
             return
-        session_id, session_path = session_parts[0], session_parts[1]
+
+        if len(session_parts) == 0 or not session_parts[0]:
+            session_id = soul.runtime.session.id
+            session_path = str(soul.runtime.session.context_file)
+        elif len(session_parts) == 1:
+            session_id = soul.runtime.session.id
+            session_path = session_parts[0]
+        else:
+            session_id, session_path = session_parts[0], session_parts[1]
         try:
             archived = import_session_file(root, Path(session_path), session_id=session_id)
         except Exception as exc:
@@ -745,11 +755,25 @@ async def wiki(app: Shell, args: str):
             return
         console.print(f"[green]Archived session to[/green] {archived.raw_path}")
         console.print(f"[green]Metadata written to[/green] {archived.metadata_path}")
+        material = load_session_material(archived.raw_path, session_id=session_id)
+        result = distill_source_to_page(
+            root=root,
+            source_text=material.source_text,
+            source_title=material.source_title,
+            page_kind="query",
+            page_slug=session_id,
+            source_identity=material.source_identity,
+            source_kind=material.source_kind,
+            parser_name=material.parser_name,
+            quality_flags=material.quality_flags,
+        )
+        console.print(f"[green]Distilled session into wiki page:[/green] [[{result.page_slug}]]")
+        console.print(f"[green]Page path:[/green] {result.page_path}")
 
     else:
         console.print(
             "[red]Usage: /wiki [list|read <slug>|ingest <url-or-file>|relink|audit|"
-            "delete <slug...>|index|orient|import-session <session-id> <path>][/red]"
+            "delete <slug...>|index|orient|import-session [<session-id>] [<path>]][/red]"
         )
 
 
@@ -813,7 +837,7 @@ async def llm_wiki_orient(app: Shell, args: str):
 
 @registry.command(name="llm-wiki:import-session")
 async def llm_wiki_import_session(app: Shell, args: str):
-    """LLM wiki quick command: /llm-wiki:import-session <session-id> <session-jsonl-path>"""
+    """LLM wiki quick command: /llm-wiki:import-session [<session-id>] [<session-jsonl-path>]"""
     await _invoke_wiki_command(app, "import-session", args)
 
 

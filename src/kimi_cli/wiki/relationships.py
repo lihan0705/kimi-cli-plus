@@ -317,7 +317,9 @@ def extract_wikilinks(text: str) -> list[str]:
     return links
 
 
-def split_frontmatter(text: str, path: Path | None = None) -> tuple[dict[str, str], str]:
+def split_frontmatter(
+    text: str, path: Path | None = None
+) -> tuple[dict[str, str | list[str]], str]:
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}, text
@@ -350,11 +352,24 @@ def base_slug_from_page_slug(slug: str) -> str:
     return base_slug or slug
 
 
-def _parse_frontmatter(lines: list[str], path: Path | None) -> dict[str, str]:
-    data: dict[str, str] = {}
+def _parse_frontmatter(lines: list[str], path: Path | None) -> dict[str, str | list[str]]:
+    data: dict[str, str | list[str]] = {}
+    current_list_key: str | None = None
     for line in lines:
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("- "):
+            if current_list_key is None:
+                message = f"malformed frontmatter syntax: {stripped!r}"
+                if path is None:
+                    raise ValueError(message)
+                raise WikiRelationshipParseError(path, message)
+            current_value = data.get(current_list_key)
+            if not isinstance(current_value, list):
+                current_value = []
+                data[current_list_key] = current_value
+            current_value.append(stripped[2:].strip())
             continue
         if ":" not in stripped:
             message = f"malformed frontmatter syntax: {stripped!r}"
@@ -362,7 +377,14 @@ def _parse_frontmatter(lines: list[str], path: Path | None) -> dict[str, str]:
                 raise ValueError(message)
             raise WikiRelationshipParseError(path, message)
         key, value = stripped.split(":", 1)
-        data[key.strip()] = value.strip()
+        key = key.strip()
+        value = value.strip()
+        current_list_key = None
+        if value:
+            data[key] = value
+            continue
+        data[key] = ""
+        current_list_key = key
     return data
 
 
