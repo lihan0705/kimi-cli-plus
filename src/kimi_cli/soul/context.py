@@ -92,6 +92,16 @@ class Context:
                 Message(role="user", content=[system(f"CHECKPOINT {checkpoint_id}")])
             )
 
+    def has_checkpoint(self, checkpoint_id: int) -> bool:
+        return 0 <= checkpoint_id < self._next_checkpoint_id
+
+    async def rewind_to(self, checkpoint_id: int, note: str):
+        if not self.has_checkpoint(checkpoint_id):
+            raise ValueError(f"Checkpoint {checkpoint_id} does not exist")
+        await self.revert_to(checkpoint_id)
+        await self.checkpoint(add_user_message=False)
+        await self.append_message(Message(role="user", content=[system(note)]))
+
     async def revert_to(self, checkpoint_id: int):
         """
         Revert the context to the specified checkpoint.
