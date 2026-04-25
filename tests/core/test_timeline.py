@@ -88,6 +88,23 @@ async def test_build_timeline_keeps_consecutive_pending_checkpoints_at_eof(
 
 
 @pytest.mark.asyncio
+async def test_build_timeline_skips_internal_records_before_following_user_turn(
+    tmp_path: Path,
+) -> None:
+    context_file = tmp_path / "context.jsonl"
+    context = Context(context_file)
+
+    await context.checkpoint(add_user_message=False)
+    await context.update_token_count(42)
+    await context.update_summary("summary")
+    await context.append_message(Message(role="user", content=[TextPart(text="continue")]))
+
+    nodes = await build_timeline(context_file)
+
+    assert nodes == [TimelineNode(checkpoint_id=0, title="continue", message_index=0)]
+
+
+@pytest.mark.asyncio
 async def test_checkpoint_exists_reads_raw_checkpoint_records(tmp_path: Path) -> None:
     context_file = tmp_path / "context.jsonl"
     context = Context(context_file)
@@ -96,3 +113,26 @@ async def test_checkpoint_exists_reads_raw_checkpoint_records(tmp_path: Path) ->
 
     assert await checkpoint_exists(context_file, 0) is True
     assert await checkpoint_exists(context_file, 1) is False
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_exists_returns_false_for_negative_ids(tmp_path: Path) -> None:
+    context_file = tmp_path / "context.jsonl"
+    context = Context(context_file)
+
+    await context.checkpoint(add_user_message=False)
+
+    assert await checkpoint_exists(context_file, -1) is False
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_exists_coerces_raw_checkpoint_ids(tmp_path: Path) -> None:
+    context_file = tmp_path / "context.jsonl"
+    context_file.write_text('{"role":"_checkpoint","id":"0"}\n', encoding="utf-8")
+
+    assert await checkpoint_exists(context_file, 0) is True
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_exists_returns_false_for_missing_context_file(tmp_path: Path) -> None:
+    assert await checkpoint_exists(tmp_path / "missing.jsonl", 0) is False
