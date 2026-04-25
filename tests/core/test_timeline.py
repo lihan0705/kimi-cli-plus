@@ -43,6 +43,51 @@ async def test_build_timeline_ignores_synthetic_checkpoint_user_messages(
 
 
 @pytest.mark.asyncio
+async def test_build_timeline_maps_consecutive_checkpoints_to_following_user_turn(
+    tmp_path: Path,
+) -> None:
+    context_file = tmp_path / "context.jsonl"
+    context = Context(context_file)
+
+    await context.checkpoint(add_user_message=False)
+    await context.checkpoint(add_user_message=False)
+    await context.append_message(Message(role="user", content=[TextPart(text="next")]))
+
+    nodes = await build_timeline(context_file)
+
+    assert nodes == [
+        TimelineNode(checkpoint_id=0, title="next", message_index=0),
+        TimelineNode(checkpoint_id=1, title="next", message_index=0),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_build_timeline_keeps_consecutive_pending_checkpoints_at_eof(
+    tmp_path: Path,
+) -> None:
+    context_file = tmp_path / "context.jsonl"
+    context = Context(context_file)
+
+    await context.checkpoint(add_user_message=False)
+    await context.checkpoint(add_user_message=False)
+
+    nodes = await build_timeline(context_file)
+
+    assert nodes == [
+        TimelineNode(
+            checkpoint_id=0,
+            title="(checkpoint before next turn)",
+            message_index=None,
+        ),
+        TimelineNode(
+            checkpoint_id=1,
+            title="(checkpoint before next turn)",
+            message_index=None,
+        ),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_checkpoint_exists_reads_raw_checkpoint_records(tmp_path: Path) -> None:
     context_file = tmp_path / "context.jsonl"
     context = Context(context_file)

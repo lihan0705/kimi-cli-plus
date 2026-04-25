@@ -46,33 +46,36 @@ async def build_timeline(context_file: Path) -> list[TimelineNode]:
 
     nodes: list[TimelineNode] = []
     message_index = -1
-    pending_checkpoint: int | None = None
+    pending_checkpoints: list[int] = []
     for kind, checkpoint_id, message in records:
         if kind == "_checkpoint":
-            pending_checkpoint = checkpoint_id
+            assert checkpoint_id is not None
+            pending_checkpoints.append(checkpoint_id)
             continue
         assert message is not None
         message_index += 1
-        if pending_checkpoint is None:
+        if not pending_checkpoints:
             continue
         if message.role == "user" and not _is_checkpoint_user_message(message):
-            nodes.append(
+            title = _title_for_message(message)
+            nodes.extend(
                 TimelineNode(
                     checkpoint_id=pending_checkpoint,
-                    title=_title_for_message(message),
+                    title=title,
                     message_index=message_index,
                 )
+                for pending_checkpoint in pending_checkpoints
             )
-            pending_checkpoint = None
+            pending_checkpoints.clear()
 
-    if pending_checkpoint is not None:
-        nodes.append(
-            TimelineNode(
-                checkpoint_id=pending_checkpoint,
-                title="(checkpoint before next turn)",
-                message_index=None,
-            )
+    nodes.extend(
+        TimelineNode(
+            checkpoint_id=pending_checkpoint,
+            title="(checkpoint before next turn)",
+            message_index=None,
         )
+        for pending_checkpoint in pending_checkpoints
+    )
     return nodes
 
 
