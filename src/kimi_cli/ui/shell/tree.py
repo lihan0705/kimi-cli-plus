@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal, cast
 
-from prompt_toolkit.shortcuts import button_dialog
 from rich.console import Console
 
 from kimi_cli.soul.timeline import TimelineNode, build_timeline
@@ -15,12 +14,28 @@ console = Console()
 TreeMode = Literal["conversation", "restore", "cancel"]
 
 
-async def _select_checkpoint(nodes: list[TimelineNode]) -> int | None:
+async def _select_checkpoint(nodes: list[TimelineNode], store: Any) -> int | None:
     from prompt_toolkit.shortcuts.choice_input import ChoiceInput
 
     if not nodes:
         return None
-    choices = [(str(node.checkpoint_id), f"#{node.checkpoint_id} {node.title}") for node in nodes]
+
+    choices = []
+    prev_id: int | None = None
+
+    for node in nodes:
+        label = f"#{node.checkpoint_id} {node.title}"
+        # Compare current node's snapshot with previous node's snapshot to see turn changes
+        change_count = store.get_change_count(node.checkpoint_id, base_checkpoint_id=prev_id)
+
+        if change_count is not None and change_count > 0:
+            label += f" [dim][{change_count} file{'s' if change_count > 1 else ''} changed][/dim]"
+        elif change_count == 0:
+            label += " [dim][no file changes][/dim]"
+
+        choices.append((str(node.checkpoint_id), label))
+        prev_id = node.checkpoint_id
+
     selected = await ChoiceInput(
         message="Select a checkpoint to continue from:",
         options=choices,
@@ -47,18 +62,23 @@ async def _select_mode(has_workspace_checkpoint: bool) -> TreeMode:
 
 
 async def _confirm_restore(changed_files: list[str]) -> bool:
+    from prompt_toolkit.shortcuts.choice_input import ChoiceInput
+
     if changed_files:
-        console.print("Files that may change:")
+        console.print("[yellow]Files that will be restored/changed:[/yellow]")
         for file in changed_files:
             console.print(f"  {file}")
     else:
-        console.print("No file changes detected for restore.")
-    result = await button_dialog(
-        title="Restore files?",
-        text="Restore workspace files from this checkpoint?",
-        buttons=[("Yes", True), ("No", False)],
-    ).run_async()
-    return bool(result)
+        console.print("[blue]No file changes detected between current state and snapshot.[/blue]")
+
+    choices = [("yes", "Yes, restore files"), ("no", "No, cancel restore")]
+    selected = await ChoiceInput(
+        message="Restore workspace files to this checkpoint?",
+        options=choices,
+        default="yes",
+    ).prompt_async()
+
+    return selected == "yes"
 
 
 async def tree(app: Shell, args: str) -> None:
@@ -71,7 +91,7 @@ async def tree(app: Shell, args: str) -> None:
         console.print("[yellow]No checkpoints available in this session.[/yellow]")
         return
 
-    checkpoint_id = await _select_checkpoint(nodes)
+    checkpoint_id = await _select_checkpoint(nodes, soul.runtime.workspace_checkpoints)
     if checkpoint_id is None:
         return
 
