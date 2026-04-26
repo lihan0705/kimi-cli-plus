@@ -31,9 +31,11 @@ class WorkspaceCheckpointStore:
         self._work_dir = work_dir
         self._root = session_dir / "workspace-checkpoints"
         self._snapshots_dir = self._root / "snapshots"
+        self._pre_restore_dir = self._root / "pre-restore"
         self._index_file = self._root / "index.json"
         self._root.mkdir(parents=True, exist_ok=True)
         self._snapshots_dir.mkdir(parents=True, exist_ok=True)
+        self._pre_restore_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_index(self) -> dict[str, dict[str, object]]:
         if not self._index_file.exists():
@@ -92,8 +94,12 @@ class WorkspaceCheckpointStore:
                 f"No workspace checkpoint for conversation checkpoint {conversation_checkpoint_id}"
             )
         snapshot_path = self._snapshots_dir / checkpoint.snapshot_id
-        self.create_once(-1, reason=f"pre-restore-{conversation_checkpoint_id}")
+        self._copy_pre_restore_snapshot(conversation_checkpoint_id)
         self._restore_snapshot(snapshot_path)
+
+    def _copy_pre_restore_snapshot(self, conversation_checkpoint_id: int) -> None:
+        snapshot_id = f"pre-restore-{conversation_checkpoint_id}-{time.time_ns()}"
+        self._copy_worktree(self._pre_restore_dir / snapshot_id)
 
     def _copy_worktree(self, target: Path) -> None:
         target.mkdir(parents=True, exist_ok=False)

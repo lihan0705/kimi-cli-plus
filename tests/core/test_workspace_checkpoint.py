@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from kimi_cli.soul.workspace_checkpoint import WorkspaceCheckpointStore
@@ -42,6 +43,30 @@ def test_restore_checkpoint_restores_modified_added_and_deleted_files(tmp_path: 
     assert (work_dir / "keep.txt").read_text(encoding="utf-8") == "keep\n"
     assert not (work_dir / "new.txt").exists()
     assert checkpoint.conversation_checkpoint_id == 0
+
+
+def test_restore_keeps_pre_restore_snapshot_out_of_checkpoint_index(tmp_path: Path) -> None:
+    work_dir = tmp_path / "work"
+    session_dir = tmp_path / "session"
+    work_dir.mkdir()
+    (work_dir / "app.py").write_text("v1\n", encoding="utf-8")
+
+    store = WorkspaceCheckpointStore(session_dir=session_dir, work_dir=work_dir)
+    store.create_once(0, reason="before edit")
+
+    (work_dir / "app.py").write_text("v2\n", encoding="utf-8")
+
+    store.restore(0)
+
+    index_file = session_dir / "workspace-checkpoints" / "index.json"
+    index = json.loads(index_file.read_text(encoding="utf-8"))
+    assert "-1" not in index
+    assert store.get(-1) is None
+
+    pre_restore_dir = session_dir / "workspace-checkpoints" / "pre-restore"
+    pre_restore_snapshots = list(pre_restore_dir.iterdir())
+    assert len(pre_restore_snapshots) == 1
+    assert (pre_restore_snapshots[0] / "app.py").read_text(encoding="utf-8") == "v2\n"
 
 
 def test_restore_missing_checkpoint_raises(tmp_path: Path) -> None:
