@@ -8,8 +8,18 @@ import pytest
 from kaos.path import KaosPath
 from pydantic import ValidationError
 
+from kimi_cli.soul.agent import Runtime
 from kimi_cli.tools.file.write import Params, WriteFile
 from kimi_cli.wire.types import DiffDisplayBlock
+
+
+class FakeWorkspaceCheckpoints:
+    def __init__(self) -> None:
+        self.calls: list[tuple[int, str]] = []
+
+    def create_once(self, conversation_checkpoint_id: int, *, reason: str):
+        self.calls.append((conversation_checkpoint_id, reason))
+        return object()
 
 
 async def test_write_new_file(write_file_tool: WriteFile, temp_work_dir: KaosPath):
@@ -171,3 +181,19 @@ async def test_write_large_content(write_file_tool: WriteFile, temp_work_dir: Ka
     assert not result.is_error
     assert await file_path.exists()
     assert await file_path.read_text() == content
+
+
+async def test_write_file_creates_workspace_checkpoint(
+    write_file_tool: WriteFile,
+    runtime: Runtime,
+    temp_work_dir: KaosPath,
+) -> None:
+    checkpoints = FakeWorkspaceCheckpoints()
+    runtime.workspace_checkpoints = checkpoints  # pyright: ignore[reportAttributeAccessIssue]
+    runtime.current_checkpoint_id = 3
+    file_path = temp_work_dir / "checkpointed.txt"
+
+    result = await write_file_tool(Params(path=str(file_path), content="content"))
+
+    assert not result.is_error
+    assert checkpoints.calls == [(3, "WriteFile")]

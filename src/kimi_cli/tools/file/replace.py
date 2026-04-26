@@ -37,6 +37,7 @@ class StrReplaceFile(CallableTool2[Params]):
 
     def __init__(self, runtime: Runtime, approval: Approval):
         super().__init__()
+        self._runtime = runtime
         self._work_dir = runtime.builtin_args.KIMI_WORK_DIR
         self._additional_dirs = runtime.additional_dirs
         self._approval = approval
@@ -129,6 +130,10 @@ class StrReplaceFile(CallableTool2[Params]):
                 ),
             ):
                 return ToolRejectedError()
+
+            checkpoint_id = self._runtime.current_checkpoint_id
+            if checkpoint_id is not None:
+                self._runtime.workspace_checkpoints.create_once(checkpoint_id, reason=self.name)
 
             # Write the modified content back to the file
             await p.write_text(content, errors="replace")
