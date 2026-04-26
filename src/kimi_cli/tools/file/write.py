@@ -129,7 +129,9 @@ class WriteFile(CallableTool2[Params]):
             ):
                 return ToolRejectedError()
 
-            checkpoint_id = self._runtime.current_checkpoint_id
+            checkpoint_id = self._runtime.turn_checkpoint_id
+            if checkpoint_id is None:
+                checkpoint_id = self._runtime.current_checkpoint_id
             if checkpoint_id is not None:
                 self._runtime.workspace_checkpoints.create_once(checkpoint_id, reason=self.name)
 

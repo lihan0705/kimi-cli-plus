@@ -106,6 +106,7 @@ def test_runtime_has_workspace_checkpoint_store(runtime: Runtime) -> None:
     assert runtime.workspace_checkpoints is not None
     assert runtime.workspace_checkpoints.get(0) is None
     assert runtime.current_checkpoint_id is None
+    assert runtime.turn_checkpoint_id is None
 
 
 def test_runtime_subagent_copies_share_checkpoint_state(runtime: Runtime) -> None:
@@ -113,15 +114,22 @@ def test_runtime_subagent_copies_share_checkpoint_state(runtime: Runtime) -> Non
     dynamic_runtime = runtime.copy_for_dynamic_subagent()
 
     runtime.current_checkpoint_id = 3
+    runtime.turn_checkpoint_id = 30
 
     assert fixed_runtime.current_checkpoint_id == 3
     assert dynamic_runtime.current_checkpoint_id == 3
+    assert fixed_runtime.turn_checkpoint_id == 30
+    assert dynamic_runtime.turn_checkpoint_id == 30
 
     fixed_runtime.current_checkpoint_id = 4
+    fixed_runtime.turn_checkpoint_id = 40
     assert runtime.current_checkpoint_id == 4
+    assert runtime.turn_checkpoint_id == 40
 
     dynamic_runtime.current_checkpoint_id = 5
+    dynamic_runtime.turn_checkpoint_id = 50
     assert runtime.current_checkpoint_id == 5
+    assert runtime.turn_checkpoint_id == 50
 
 
 async def test_kimisoul_initializes_current_checkpoint_id_from_restored_context(

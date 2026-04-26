@@ -197,3 +197,20 @@ async def test_write_file_creates_workspace_checkpoint(
 
     assert not result.is_error
     assert checkpoints.calls == [(3, "WriteFile")]
+
+
+async def test_write_file_uses_turn_checkpoint_for_workspace_checkpoint(
+    write_file_tool: WriteFile,
+    runtime: Runtime,
+    temp_work_dir: KaosPath,
+) -> None:
+    checkpoints = FakeWorkspaceCheckpoints()
+    runtime.workspace_checkpoints = checkpoints  # pyright: ignore[reportAttributeAccessIssue]  # type: ignore[invalid-assignment]
+    runtime.current_checkpoint_id = 4
+    runtime.turn_checkpoint_id = 3
+    file_path = temp_work_dir / "turn-checkpointed.txt"
+
+    result = await write_file_tool(Params(path=str(file_path), content="content"))
+
+    assert not result.is_error
+    assert checkpoints.calls == [(3, "WriteFile")]

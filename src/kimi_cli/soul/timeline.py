@@ -13,7 +13,6 @@ class TimelineNode:
     checkpoint_id: int
     title: str
     message_index: int | None
-    restore_checkpoint_ids: tuple[int, ...] = ()
 
 
 def _is_checkpoint_user_message(message: Message) -> bool:
@@ -43,17 +42,6 @@ async def build_timeline(context_file: Path) -> list[TimelineNode]:
     message_index = -1
     pending_checkpoints: list[int] = []
 
-    def attach_restore_checkpoints(checkpoint_ids: list[int]) -> None:
-        if not nodes or not checkpoint_ids:
-            return
-        previous = nodes[-1]
-        nodes[-1] = TimelineNode(
-            checkpoint_id=previous.checkpoint_id,
-            title=previous.title,
-            message_index=previous.message_index,
-            restore_checkpoint_ids=previous.restore_checkpoint_ids + tuple(checkpoint_ids),
-        )
-
     async with aiofiles.open(context_file, encoding="utf-8") as f:
         async for line in f:
             if not line.strip():
@@ -73,7 +61,6 @@ async def build_timeline(context_file: Path) -> list[TimelineNode]:
                 pending_checkpoints.clear()
                 continue
             if message.role == "user" and not _is_checkpoint_user_message(message):
-                attach_restore_checkpoints(pending_checkpoints[:-1])
                 title = _title_for_message(message)
                 nodes.append(
                     TimelineNode(
@@ -83,8 +70,6 @@ async def build_timeline(context_file: Path) -> list[TimelineNode]:
                     )
                 )
                 pending_checkpoints.clear()
-
-    attach_restore_checkpoints(pending_checkpoints)
     return nodes
 
 

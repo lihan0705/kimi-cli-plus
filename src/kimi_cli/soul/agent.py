@@ -67,6 +67,7 @@ async def load_agents_md(work_dir: KaosPath) -> str | None:
 @dataclass(slots=True, kw_only=True)
 class RuntimeCheckpointState:
     current_checkpoint_id: int | None = None
+    turn_checkpoint_id: int | None = None
 
 
 @dataclass(slots=True, kw_only=True)
@@ -95,6 +96,14 @@ class Runtime:
     @current_checkpoint_id.setter
     def current_checkpoint_id(self, checkpoint_id: int | None) -> None:
         self.checkpoint_state.current_checkpoint_id = checkpoint_id
+
+    @property
+    def turn_checkpoint_id(self) -> int | None:
+        return self.checkpoint_state.turn_checkpoint_id
+
+    @turn_checkpoint_id.setter
+    def turn_checkpoint_id(self, checkpoint_id: int | None) -> None:
+        self.checkpoint_state.turn_checkpoint_id = checkpoint_id
 
     @staticmethod
     async def create(

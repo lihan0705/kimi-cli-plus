@@ -291,6 +291,7 @@ class KimiSoul:
             raise LLMNotSupported(self._runtime.llm, list(missing_caps))
 
         await self._checkpoint()  # this creates the checkpoint 0 on first run
+        self._runtime.turn_checkpoint_id = self._runtime.current_checkpoint_id
         await self._context.append_message(user_message)
         logger.debug("Appended user message to context")
         return await self._agent_loop()

@@ -26,6 +26,10 @@ EXCLUDED_DIRS = {
 }
 
 
+def _is_excluded_part(part: str) -> bool:
+    return part in EXCLUDED_DIRS or part.startswith(".venv")
+
+
 @dataclass(frozen=True, slots=True)
 class WorkspaceCheckpoint:
     conversation_checkpoint_id: int
@@ -154,7 +158,7 @@ class WorkspaceCheckpointStore:
         files: list[Path] = []
         for path in root.rglob("*"):
             rel_parts = path.relative_to(root).parts
-            if any(part in EXCLUDED_DIRS for part in rel_parts):
+            if any(_is_excluded_part(part) for part in rel_parts):
                 continue
             if path.is_file():
                 files.append(path)

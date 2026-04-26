@@ -73,6 +73,7 @@ def test_restore_ignores_excluded_dirs(tmp_path: Path) -> None:
     excluded_dirs = [
         ".git",
         ".venv",
+        ".venv312",
         "venv",
         "__pycache__",
         ".mypy_cache",
