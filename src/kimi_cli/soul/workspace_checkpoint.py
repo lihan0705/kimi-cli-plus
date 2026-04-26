@@ -52,9 +52,6 @@ class WorkspaceCheckpointStore:
         self._snapshots_dir = self._root / "snapshots"
         self._pre_restore_dir = self._root / "pre-restore"
         self._index_file = self._root / "index.json"
-        self._root.mkdir(parents=True, exist_ok=True)
-        self._snapshots_dir.mkdir(parents=True, exist_ok=True)
-        self._pre_restore_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_index(self) -> dict[str, dict[str, Any]]:
         if not self._index_file.exists():
@@ -63,6 +60,7 @@ class WorkspaceCheckpointStore:
             return cast(dict[str, dict[str, Any]], json.load(f))
 
     def _save_index(self, index: dict[str, dict[str, Any]]) -> None:
+        self._root.mkdir(parents=True, exist_ok=True)
         atomic_json_write(index, self._index_file)
 
     def get(self, conversation_checkpoint_id: int) -> WorkspaceCheckpoint | None:

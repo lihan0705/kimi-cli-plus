@@ -4,6 +4,16 @@ from pathlib import Path
 from kimi_cli.soul.workspace_checkpoint import WorkspaceCheckpointStore
 
 
+def test_store_init_does_not_create_checkpoint_directory(tmp_path: Path) -> None:
+    session_dir = tmp_path / "session"
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+
+    WorkspaceCheckpointStore(session_dir=session_dir, work_dir=work_dir)
+
+    assert not (session_dir / "workspace-checkpoints").exists()
+
+
 def test_create_checkpoint_once_per_conversation_checkpoint(tmp_path: Path) -> None:
     work_dir = tmp_path / "work"
     session_dir = tmp_path / "session"
