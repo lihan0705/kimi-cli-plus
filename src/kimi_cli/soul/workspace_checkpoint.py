@@ -5,6 +5,7 @@ import shutil
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any, cast
 
 from kimi_cli.utils.io import atomic_json_write
 
@@ -51,13 +52,13 @@ class WorkspaceCheckpointStore:
         self._snapshots_dir.mkdir(parents=True, exist_ok=True)
         self._pre_restore_dir.mkdir(parents=True, exist_ok=True)
 
-    def _load_index(self) -> dict[str, dict[str, object]]:
+    def _load_index(self) -> dict[str, dict[str, Any]]:
         if not self._index_file.exists():
             return {}
         with self._index_file.open(encoding="utf-8") as f:
-            return json.load(f)
+            return cast(dict[str, dict[str, Any]], json.load(f))
 
-    def _save_index(self, index: dict[str, dict[str, object]]) -> None:
+    def _save_index(self, index: dict[str, dict[str, Any]]) -> None:
         atomic_json_write(index, self._index_file)
 
     def get(self, conversation_checkpoint_id: int) -> WorkspaceCheckpoint | None:
