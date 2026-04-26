@@ -450,6 +450,7 @@ async def new(app: Shell, args: str):
 
 
 @registry.command
+@shell_mode_registry.command
 async def tree(app: Shell, args: str):
     """Browse checkpoints and rewind conversation optionally with files"""
     from kimi_cli.ui.shell.tree import tree as run_tree

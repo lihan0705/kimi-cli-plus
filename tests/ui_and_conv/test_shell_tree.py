@@ -7,6 +7,8 @@ from kosong.message import Message
 
 from kimi_cli.soul.context import Context
 from kimi_cli.ui.shell import tree as shell_tree
+from kimi_cli.ui.shell.slash import registry as shell_slash_registry
+from kimi_cli.ui.shell.slash import shell_mode_registry
 from kimi_cli.wire.types import TextPart
 
 
@@ -43,6 +45,11 @@ def _make_app(context: Context, checkpoints: FakeWorkspaceCheckpoints):
     app.soul.runtime.session.context_file = context.file_backend
     app.soul.runtime.workspace_checkpoints = checkpoints
     return app
+
+
+def test_tree_registered_in_shell_and_agent_modes() -> None:
+    assert shell_slash_registry.find_command("tree") is not None
+    assert shell_mode_registry.find_command("tree") is not None
 
 
 @pytest.mark.asyncio
