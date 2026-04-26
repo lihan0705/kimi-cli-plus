@@ -199,7 +199,7 @@ def _runtime_with_llm(runtime: Runtime, llm: LLM) -> Runtime:
             session_dir=runtime.session.dir,
             work_dir=Path(str(runtime.session.work_dir)),
         ),
-        current_checkpoint_id=None,
+        checkpoint_state=runtime.checkpoint_state,
     )
 
 

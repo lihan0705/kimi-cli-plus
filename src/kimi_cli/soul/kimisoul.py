@@ -115,6 +115,9 @@ class KimiSoul:
         self._denwa_renji = agent.runtime.denwa_renji
         self._approval = agent.runtime.approval
         self._context = context
+        self._runtime.current_checkpoint_id = (
+            max(context.checkpoint_ids) if context.checkpoint_ids else None
+        )
         self._loop_control = agent.runtime.config.loop_control
         self._compaction = SimpleCompaction()  # TODO: maybe configurable and composable
 

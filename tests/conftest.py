@@ -23,7 +23,13 @@ from kimi_cli.llm import ALL_MODEL_CAPABILITIES, LLM
 from kimi_cli.metadata import WorkDirMeta
 from kimi_cli.session import Session
 from kimi_cli.session_state import SessionState
-from kimi_cli.soul.agent import Agent, BuiltinSystemPromptArgs, LaborMarket, Runtime
+from kimi_cli.soul.agent import (
+    Agent,
+    BuiltinSystemPromptArgs,
+    LaborMarket,
+    Runtime,
+    RuntimeCheckpointState,
+)
 from kimi_cli.soul.approval import Approval
 from kimi_cli.soul.denwarenji import DenwaRenji
 from kimi_cli.soul.toolset import KimiToolset
@@ -185,7 +191,7 @@ def runtime(
             session_dir=session.dir,
             work_dir=Path(str(session.work_dir)),
         ),
-        current_checkpoint_id=None,
+        checkpoint_state=RuntimeCheckpointState(),
     )
     rt.labor_market.add_fixed_subagent(
         "mocker",

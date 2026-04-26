@@ -65,6 +65,11 @@ async def load_agents_md(work_dir: KaosPath) -> str | None:
 
 
 @dataclass(slots=True, kw_only=True)
+class RuntimeCheckpointState:
+    current_checkpoint_id: int | None = None
+
+
+@dataclass(slots=True, kw_only=True)
 class Runtime:
     """Agent runtime."""
 
@@ -81,7 +86,15 @@ class Runtime:
     plugins: list[Plugin]
     additional_dirs: list[KaosPath]
     workspace_checkpoints: WorkspaceCheckpointStore
-    current_checkpoint_id: int | None
+    checkpoint_state: RuntimeCheckpointState
+
+    @property
+    def current_checkpoint_id(self) -> int | None:
+        return self.checkpoint_state.current_checkpoint_id
+
+    @current_checkpoint_id.setter
+    def current_checkpoint_id(self, checkpoint_id: int | None) -> None:
+        self.checkpoint_state.current_checkpoint_id = checkpoint_id
 
     @staticmethod
     async def create(
@@ -193,7 +206,7 @@ class Runtime:
                 session_dir=session.dir,
                 work_dir=Path(str(session.work_dir)),
             ),
-            current_checkpoint_id=None,
+            checkpoint_state=RuntimeCheckpointState(),
         )
 
     def copy_for_fixed_subagent(self) -> Runtime:
@@ -213,7 +226,7 @@ class Runtime:
             # Share the same list reference so /add-dir mutations propagate to all agents
             additional_dirs=self.additional_dirs,
             workspace_checkpoints=self.workspace_checkpoints,
-            current_checkpoint_id=self.current_checkpoint_id,
+            checkpoint_state=self.checkpoint_state,
         )
 
     def copy_for_dynamic_subagent(self) -> Runtime:
@@ -233,7 +246,7 @@ class Runtime:
             # Share the same list reference so /add-dir mutations propagate to all agents
             additional_dirs=self.additional_dirs,
             workspace_checkpoints=self.workspace_checkpoints,
-            current_checkpoint_id=self.current_checkpoint_id,
+            checkpoint_state=self.checkpoint_state,
         )
 
     async def refresh_skills(self, skills_dir: KaosPath | None = None) -> None:
