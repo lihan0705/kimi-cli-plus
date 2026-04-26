@@ -27,6 +27,7 @@ from kimi_cli.soul.agent import Agent, BuiltinSystemPromptArgs, LaborMarket, Run
 from kimi_cli.soul.approval import Approval
 from kimi_cli.soul.denwarenji import DenwaRenji
 from kimi_cli.soul.toolset import KimiToolset
+from kimi_cli.soul.workspace_checkpoint import WorkspaceCheckpointStore
 from kimi_cli.tools.dmail import SendDMail
 from kimi_cli.tools.file.glob import Glob
 from kimi_cli.tools.file.grep_local import Grep
@@ -180,6 +181,11 @@ def runtime(
         plugins=[],
         oauth=OAuthManager(config),
         additional_dirs=[],
+        workspace_checkpoints=WorkspaceCheckpointStore(
+            session_dir=session.dir,
+            work_dir=Path(str(session.work_dir)),
+        ),
+        current_checkpoint_id=None,
     )
     rt.labor_market.add_fixed_subagent(
         "mocker",

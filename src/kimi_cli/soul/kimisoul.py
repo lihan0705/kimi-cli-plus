@@ -197,6 +197,7 @@ class KimiSoul:
 
     async def _checkpoint(self):
         await self._context.checkpoint(self._checkpoint_with_user_message)
+        self._runtime.current_checkpoint_id = self._context.n_checkpoints - 1
 
     def steer(self, content: str | list[ContentPart]) -> None:
         """Queue a steer message for injection into the current turn."""

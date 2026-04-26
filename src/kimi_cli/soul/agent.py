@@ -24,6 +24,7 @@ from kimi_cli.skill import Skill, discover_skills_from_roots, index_skills, reso
 from kimi_cli.soul.approval import Approval, ApprovalState
 from kimi_cli.soul.denwarenji import DenwaRenji
 from kimi_cli.soul.toolset import KimiToolset
+from kimi_cli.soul.workspace_checkpoint import WorkspaceCheckpointStore
 from kimi_cli.utils.environment import Environment
 from kimi_cli.utils.logging import logger
 from kimi_cli.utils.path import list_directory
@@ -79,6 +80,8 @@ class Runtime:
     skills: dict[str, Skill]
     plugins: list[Plugin]
     additional_dirs: list[KaosPath]
+    workspace_checkpoints: WorkspaceCheckpointStore
+    current_checkpoint_id: int | None
 
     @staticmethod
     async def create(
@@ -186,6 +189,11 @@ class Runtime:
             skills=skills_by_name,
             plugins=plugins,
             additional_dirs=additional_dirs,
+            workspace_checkpoints=WorkspaceCheckpointStore(
+                session_dir=session.dir,
+                work_dir=Path(str(session.work_dir)),
+            ),
+            current_checkpoint_id=None,
         )
 
     def copy_for_fixed_subagent(self) -> Runtime:
@@ -204,6 +212,8 @@ class Runtime:
             plugins=self.plugins,
             # Share the same list reference so /add-dir mutations propagate to all agents
             additional_dirs=self.additional_dirs,
+            workspace_checkpoints=self.workspace_checkpoints,
+            current_checkpoint_id=self.current_checkpoint_id,
         )
 
     def copy_for_dynamic_subagent(self) -> Runtime:
@@ -222,6 +232,8 @@ class Runtime:
             plugins=self.plugins,
             # Share the same list reference so /add-dir mutations propagate to all agents
             additional_dirs=self.additional_dirs,
+            workspace_checkpoints=self.workspace_checkpoints,
+            current_checkpoint_id=self.current_checkpoint_id,
         )
 
     async def refresh_skills(self, skills_dir: KaosPath | None = None) -> None:

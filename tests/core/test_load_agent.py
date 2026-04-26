@@ -94,6 +94,12 @@ def test_load_tools_invalid(runtime: Runtime):
         assert "kimi_cli.tools.nonexistent:Tool" in str(e)
 
 
+def test_runtime_has_workspace_checkpoint_store(runtime: Runtime) -> None:
+    assert runtime.workspace_checkpoints is not None
+    assert runtime.workspace_checkpoints.get(0) is None
+    assert runtime.current_checkpoint_id is None
+
+
 async def test_load_agent_invalid_tools(agent_file_invalid_tools: Path, runtime: Runtime):
     """Test loading agent with invalid tools raises ValueError."""
     with pytest.raises(ValueError, match="Invalid tools"):
