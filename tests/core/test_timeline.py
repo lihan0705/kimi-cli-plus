@@ -68,7 +68,7 @@ async def test_build_timeline_hides_rewind_marker_until_next_real_turn(tmp_path:
 
 
 @pytest.mark.asyncio
-async def test_build_timeline_maps_consecutive_checkpoints_to_following_user_turn(
+async def test_build_timeline_collapses_consecutive_checkpoints_to_following_user_turn(
     tmp_path: Path,
 ) -> None:
     context_file = tmp_path / "context.jsonl"
@@ -80,14 +80,11 @@ async def test_build_timeline_maps_consecutive_checkpoints_to_following_user_tur
 
     nodes = await build_timeline(context_file)
 
-    assert nodes == [
-        TimelineNode(checkpoint_id=0, title="next", message_index=0),
-        TimelineNode(checkpoint_id=1, title="next", message_index=0),
-    ]
+    assert nodes == [TimelineNode(checkpoint_id=1, title="next", message_index=0)]
 
 
 @pytest.mark.asyncio
-async def test_build_timeline_keeps_consecutive_pending_checkpoints_at_eof(
+async def test_build_timeline_hides_pending_checkpoints_at_eof(
     tmp_path: Path,
 ) -> None:
     context_file = tmp_path / "context.jsonl"
@@ -98,18 +95,7 @@ async def test_build_timeline_keeps_consecutive_pending_checkpoints_at_eof(
 
     nodes = await build_timeline(context_file)
 
-    assert nodes == [
-        TimelineNode(
-            checkpoint_id=0,
-            title="(checkpoint before next turn)",
-            message_index=None,
-        ),
-        TimelineNode(
-            checkpoint_id=1,
-            title="(checkpoint before next turn)",
-            message_index=None,
-        ),
-    ]
+    assert nodes == []
 
 
 @pytest.mark.asyncio

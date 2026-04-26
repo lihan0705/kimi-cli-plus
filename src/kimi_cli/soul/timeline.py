@@ -41,7 +41,6 @@ async def build_timeline(context_file: Path) -> list[TimelineNode]:
     nodes: list[TimelineNode] = []
     message_index = -1
     pending_checkpoints: list[int] = []
-    pending_rewind_marker = False
 
     async with aiofiles.open(context_file, encoding="utf-8") as f:
         async for line in f:
@@ -59,30 +58,18 @@ async def build_timeline(context_file: Path) -> list[TimelineNode]:
             if not pending_checkpoints:
                 continue
             if message.role == "user" and _is_rewind_user_message(message):
-                pending_rewind_marker = True
                 continue
             if message.role == "user" and not _is_checkpoint_user_message(message):
                 title = _title_for_message(message)
-                nodes.extend(
+                nodes.append(
                     TimelineNode(
-                        checkpoint_id=pending_checkpoint,
+                        checkpoint_id=max(pending_checkpoints),
                         title=title,
                         message_index=message_index,
                     )
-                    for pending_checkpoint in pending_checkpoints
                 )
                 pending_checkpoints.clear()
-                pending_rewind_marker = False
 
-    if not pending_rewind_marker:
-        nodes.extend(
-            TimelineNode(
-                checkpoint_id=pending_checkpoint,
-                title="(checkpoint before next turn)",
-                message_index=None,
-            )
-            for pending_checkpoint in pending_checkpoints
-        )
     return nodes
 
 
