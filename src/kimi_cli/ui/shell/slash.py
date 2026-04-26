@@ -449,6 +449,18 @@ async def new(app: Shell, args: str):
     raise Reload(session_id=session.id)
 
 
+@registry.command
+async def tree(app: Shell, args: str):
+    """Browse checkpoints and rewind conversation optionally with files"""
+    from kimi_cli.ui.shell.tree import tree as run_tree
+
+    soul = ensure_kimi_soul(app)
+    if soul is None:
+        return
+    await run_tree(app, args)
+    raise Reload(session_id=soul.runtime.session.id)
+
+
 @registry.command(name="sessions", aliases=["resume"])
 async def list_sessions(app: Shell, args: str):
     """List sessions and resume optionally"""
