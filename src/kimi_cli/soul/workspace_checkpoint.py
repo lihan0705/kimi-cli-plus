@@ -10,12 +10,14 @@ from kimi_cli.utils.io import atomic_json_write
 
 EXCLUDED_DIRS = {
     ".git",
+    ".cache",
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
     ".venv",
     "__pycache__",
     "build",
+    "cache",
     "dist",
     "node_modules",
     "target",
