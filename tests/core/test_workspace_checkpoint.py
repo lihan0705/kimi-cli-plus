@@ -69,6 +69,32 @@ def test_restore_keeps_pre_restore_snapshot_out_of_checkpoint_index(tmp_path: Pa
     assert (pre_restore_snapshots[0] / "app.py").read_text(encoding="utf-8") == "v2\n"
 
 
+def test_restore_ignores_excluded_dependency_and_build_dirs(tmp_path: Path) -> None:
+    work_dir = tmp_path / "work"
+    session_dir = tmp_path / "session"
+    work_dir.mkdir()
+    (work_dir / "app.py").write_text("v1\n", encoding="utf-8")
+    (work_dir / "node_modules" / "pkg").mkdir(parents=True)
+    (work_dir / "node_modules" / "pkg" / "file.js").write_text("module v1\n", encoding="utf-8")
+    (work_dir / "target" / "debug").mkdir(parents=True)
+    (work_dir / "target" / "debug" / "app").write_text("binary v1\n", encoding="utf-8")
+
+    store = WorkspaceCheckpointStore(session_dir=session_dir, work_dir=work_dir)
+    store.create_once(0, reason="before edit")
+
+    (work_dir / "app.py").write_text("v2\n", encoding="utf-8")
+    (work_dir / "node_modules" / "pkg" / "file.js").write_text("module v2\n", encoding="utf-8")
+    (work_dir / "target" / "debug" / "app").unlink()
+
+    store.restore(0)
+
+    assert (work_dir / "app.py").read_text(encoding="utf-8") == "v1\n"
+    assert (
+        work_dir / "node_modules" / "pkg" / "file.js"
+    ).read_text(encoding="utf-8") == "module v2\n"
+    assert not (work_dir / "target" / "debug" / "app").exists()
+
+
 def test_restore_missing_checkpoint_raises(tmp_path: Path) -> None:
     store = WorkspaceCheckpointStore(session_dir=tmp_path / "session", work_dir=tmp_path / "work")
 

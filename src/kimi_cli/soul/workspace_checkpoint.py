@@ -8,7 +8,19 @@ from pathlib import Path
 
 from kimi_cli.utils.io import atomic_json_write
 
-EXCLUDED_DIRS = {".git", ".venv", "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
+EXCLUDED_DIRS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "target",
+    "venv",
+}
 
 
 @dataclass(frozen=True, slots=True)
