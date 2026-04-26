@@ -43,6 +43,31 @@ async def test_build_timeline_ignores_synthetic_checkpoint_user_messages(
 
 
 @pytest.mark.asyncio
+async def test_build_timeline_hides_rewind_marker_until_next_real_turn(tmp_path: Path) -> None:
+    context_file = tmp_path / "context.jsonl"
+    context = Context(context_file)
+
+    await context.checkpoint(add_user_message=False)
+    await context.append_message(Message(role="user", content=[TextPart(text="draw a map")]))
+    await context.checkpoint(add_user_message=False)
+    await context.append_message(
+        Message(
+            role="user",
+            content=[
+                TextPart(
+                    text="<system>The user rewound the conversation to checkpoint 1 "
+                    "with mode conversation-only. Continue from that point.</system>"
+                )
+            ],
+        )
+    )
+
+    nodes = await build_timeline(context_file)
+
+    assert nodes == [TimelineNode(checkpoint_id=0, title="draw a map", message_index=0)]
+
+
+@pytest.mark.asyncio
 async def test_build_timeline_maps_consecutive_checkpoints_to_following_user_turn(
     tmp_path: Path,
 ) -> None:
