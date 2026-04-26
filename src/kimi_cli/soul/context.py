@@ -122,7 +122,7 @@ class Context:
         """
 
         logger.debug("Reverting checkpoint, ID: {id}", id=checkpoint_id)
-        if checkpoint_id >= self._next_checkpoint_id:
+        if not self.has_checkpoint(checkpoint_id):
             logger.error("Checkpoint {checkpoint_id} does not exist", checkpoint_id=checkpoint_id)
             raise ValueError(f"Checkpoint {checkpoint_id} does not exist")
 

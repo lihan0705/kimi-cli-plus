@@ -26,6 +26,9 @@ async def test_rewind_to_truncates_context_and_appends_note(tmp_path: Path) -> N
         "<system>The user rewound to checkpoint 1.</system>",
     ]
     assert context.n_checkpoints == 2
+    assert context.has_checkpoint(0) is True
+    assert context.has_checkpoint(1) is True
+    assert context.has_checkpoint(2) is False
 
 
 @pytest.mark.asyncio
@@ -119,6 +122,39 @@ async def test_restore_tracks_non_contiguous_checkpoint_records(tmp_path: Path) 
     assert await context.restore() is True
 
     assert context.n_checkpoints == 3
+    assert context.has_checkpoint(0) is True
+    assert context.has_checkpoint(1) is False
+    assert context.has_checkpoint(2) is True
+
+
+@pytest.mark.asyncio
+async def test_revert_to_rejects_non_contiguous_missing_checkpoint_without_mutating_history(
+    tmp_path: Path,
+) -> None:
+    context_file = tmp_path / "context.jsonl"
+    first = Message(role="user", content=[TextPart(text="first")])
+    second = Message(role="user", content=[TextPart(text="second")])
+    context_file.write_text(
+        "\n".join(
+            [
+                json.dumps({"role": "_checkpoint", "id": 0}),
+                first.model_dump_json(exclude_none=True),
+                json.dumps({"role": "_checkpoint", "id": 2}),
+                second.model_dump_json(exclude_none=True),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    context = Context(context_file)
+    assert await context.restore() is True
+    original_history = [m.extract_text() for m in context.history]
+
+    with pytest.raises(ValueError, match="Checkpoint 1 does not exist"):
+        await context.revert_to(1)
+
+    assert [m.extract_text() for m in context.history] == original_history
     assert context.has_checkpoint(0) is True
     assert context.has_checkpoint(1) is False
     assert context.has_checkpoint(2) is True
