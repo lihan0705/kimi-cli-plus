@@ -9,24 +9,34 @@ from kimi_cli.soul.timeline import TimelineNode, build_timeline
 from kimi_cli.ui.shell.slash import ensure_kimi_soul
 
 if TYPE_CHECKING:
+    from kimi_cli.soul.workspace_checkpoint import WorkspaceCheckpointStore
     from kimi_cli.ui.shell import Shell
 
 console = Console()
 TreeMode = Literal["conversation", "restore", "cancel"]
 
 
-async def _select_checkpoint(nodes: list[TimelineNode]) -> int | None:
+async def _select_checkpoint(nodes: list[TimelineNode]) -> TimelineNode | None:
     from prompt_toolkit.shortcuts.choice_input import ChoiceInput
 
     if not nodes:
         return None
-    choices = [(str(node.checkpoint_id), f"#{node.checkpoint_id} {node.title}") for node in nodes]
+    choices = [
+        (str(index), f"#{node.checkpoint_id} {node.title}") for index, node in enumerate(nodes)
+    ]
     selected = await ChoiceInput(
         message="Select a checkpoint to continue from:",
         options=choices,
         default=choices[-1][0],
     ).prompt_async()
-    return int(selected) if selected else None
+    return nodes[int(selected)] if selected else None
+
+
+def _restore_checkpoint_id(store: WorkspaceCheckpointStore, node: TimelineNode) -> int | None:
+    for checkpoint_id in (*node.restore_checkpoint_ids, node.checkpoint_id):
+        if store.get(checkpoint_id) is not None:
+            return checkpoint_id
+    return None
 
 
 async def _select_mode(has_workspace_checkpoint: bool) -> TreeMode:
@@ -71,21 +81,24 @@ async def tree(app: Shell, args: str) -> None:
         console.print("[yellow]No checkpoints available in this session.[/yellow]")
         return
 
-    checkpoint_id = await _select_checkpoint(nodes)
-    if checkpoint_id is None:
+    node = await _select_checkpoint(nodes)
+    if node is None:
         return
+    checkpoint_id = node.checkpoint_id
 
     store = soul.runtime.workspace_checkpoints
-    has_workspace_checkpoint = store.get(checkpoint_id) is not None
+    restore_checkpoint_id = _restore_checkpoint_id(store, node)
+    has_workspace_checkpoint = restore_checkpoint_id is not None
     mode = await _select_mode(has_workspace_checkpoint)
     if mode == "cancel":
         return
 
     if mode == "restore":
-        preview = store.preview_restore(checkpoint_id)
+        assert restore_checkpoint_id is not None
+        preview = store.preview_restore(restore_checkpoint_id)
         if not await _confirm_restore(preview.changed_files):
             return
-        store.restore(checkpoint_id)
+        store.restore(restore_checkpoint_id)
 
     note = (
         f"The user rewound the conversation to checkpoint {checkpoint_id} "

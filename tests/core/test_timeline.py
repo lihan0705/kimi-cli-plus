@@ -99,6 +99,56 @@ async def test_build_timeline_hides_pending_checkpoints_at_eof(
 
 
 @pytest.mark.asyncio
+async def test_build_timeline_attaches_restore_checkpoints_to_previous_turn(
+    tmp_path: Path,
+) -> None:
+    context_file = tmp_path / "context.jsonl"
+    context = Context(context_file)
+
+    await context.checkpoint(add_user_message=False)
+    await context.append_message(Message(role="user", content=[TextPart(text="write file")]))
+    await context.checkpoint(add_user_message=False)
+    await context.checkpoint(add_user_message=False)
+    await context.append_message(Message(role="user", content=[TextPart(text="next turn")]))
+
+    nodes = await build_timeline(context_file)
+
+    assert nodes == [
+        TimelineNode(
+            checkpoint_id=0,
+            title="write file",
+            message_index=0,
+            restore_checkpoint_ids=(1,),
+        ),
+        TimelineNode(checkpoint_id=2, title="next turn", message_index=1),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_build_timeline_attaches_eof_restore_checkpoints_to_last_turn(
+    tmp_path: Path,
+) -> None:
+    context_file = tmp_path / "context.jsonl"
+    context = Context(context_file)
+
+    await context.checkpoint(add_user_message=False)
+    await context.append_message(Message(role="user", content=[TextPart(text="write file")]))
+    await context.checkpoint(add_user_message=False)
+    await context.checkpoint(add_user_message=False)
+
+    nodes = await build_timeline(context_file)
+
+    assert nodes == [
+        TimelineNode(
+            checkpoint_id=0,
+            title="write file",
+            message_index=0,
+            restore_checkpoint_ids=(1, 2),
+        )
+    ]
+
+
+@pytest.mark.asyncio
 async def test_build_timeline_skips_internal_records_before_following_user_turn(
     tmp_path: Path,
 ) -> None:
