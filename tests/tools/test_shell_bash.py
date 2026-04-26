@@ -219,7 +219,7 @@ async def test_shell_creates_workspace_checkpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     checkpoints = FakeWorkspaceCheckpoints()
-    runtime.workspace_checkpoints = checkpoints  # pyright: ignore[reportAttributeAccessIssue]
+    runtime.workspace_checkpoints = checkpoints  # pyright: ignore[reportAttributeAccessIssue]  # type: ignore[invalid-assignment]
     runtime.current_checkpoint_id = 3
 
     async def fake_run_shell_command(command, stdout_cb, stderr_cb, timeout):

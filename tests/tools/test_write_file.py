@@ -189,7 +189,7 @@ async def test_write_file_creates_workspace_checkpoint(
     temp_work_dir: KaosPath,
 ) -> None:
     checkpoints = FakeWorkspaceCheckpoints()
-    runtime.workspace_checkpoints = checkpoints  # pyright: ignore[reportAttributeAccessIssue]
+    runtime.workspace_checkpoints = checkpoints  # pyright: ignore[reportAttributeAccessIssue]  # type: ignore[invalid-assignment]
     runtime.current_checkpoint_id = 3
     file_path = temp_work_dir / "checkpointed.txt"
 
