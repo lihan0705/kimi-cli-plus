@@ -8,6 +8,7 @@ from kaos import AsyncReadable
 from kosong.tooling import CallableTool2, ToolReturnValue
 from pydantic import BaseModel, Field
 
+from kimi_cli.soul.agent import Runtime
 from kimi_cli.soul.approval import Approval
 from kimi_cli.tools.display import ShellDisplayBlock
 from kimi_cli.tools.utils import ToolRejectedError, ToolResultBuilder, load_desc
@@ -34,7 +35,7 @@ class Shell(CallableTool2[Params]):
     name: str = "Shell"
     params: type[Params] = Params
 
-    def __init__(self, approval: Approval, environment: Environment):
+    def __init__(self, runtime: Runtime, approval: Approval, environment: Environment):
         is_powershell = environment.shell_name == "Windows PowerShell"
         super().__init__(
             description=load_desc(
@@ -42,6 +43,7 @@ class Shell(CallableTool2[Params]):
                 {"SHELL": f"{environment.shell_name} (`{environment.shell_path}`)"},
             )
         )
+        self._runtime = runtime
         self._approval = approval
         self._is_powershell = is_powershell
         self._shell_path = environment.shell_path
@@ -66,6 +68,12 @@ class Shell(CallableTool2[Params]):
             security_check=lambda: self._approval.security_checker.evaluate(command=params.command),
         ):
             return ToolRejectedError()
+
+        checkpoint_id = self._runtime.turn_checkpoint_id
+        if checkpoint_id is None:
+            checkpoint_id = self._runtime.current_checkpoint_id
+        if checkpoint_id is not None:
+            self._runtime.workspace_checkpoints.create_once(checkpoint_id, reason=self.name)
 
         def stdout_cb(line: bytes):
             line_str = line.decode(encoding="utf-8", errors="replace")

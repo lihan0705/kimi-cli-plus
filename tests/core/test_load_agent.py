@@ -14,9 +14,17 @@ from kimi_cli.config import Config
 from kimi_cli.exception import InvalidToolError, SystemPromptTemplateError
 from kimi_cli.session import Session
 from kimi_cli.session_state import DynamicSubagentSpec
-from kimi_cli.soul.agent import BuiltinSystemPromptArgs, Runtime, _load_system_prompt, load_agent
+from kimi_cli.soul.agent import (
+    Agent,
+    BuiltinSystemPromptArgs,
+    Runtime,
+    _load_system_prompt,
+    load_agent,
+)
 from kimi_cli.soul.approval import Approval
+from kimi_cli.soul.context import Context
 from kimi_cli.soul.denwarenji import DenwaRenji
+from kimi_cli.soul.kimisoul import KimiSoul
 from kimi_cli.soul.toolset import KimiToolset
 from kimi_cli.utils.environment import Environment
 
@@ -92,6 +100,58 @@ def test_load_tools_invalid(runtime: Runtime):
         raise AssertionError("should fail to load non-existing tool")
     except InvalidToolError as e:
         assert "kimi_cli.tools.nonexistent:Tool" in str(e)
+
+
+def test_runtime_has_workspace_checkpoint_store(runtime: Runtime) -> None:
+    assert runtime.workspace_checkpoints is not None
+    assert runtime.workspace_checkpoints.get(0) is None
+    assert runtime.current_checkpoint_id is None
+    assert runtime.turn_checkpoint_id is None
+
+
+def test_runtime_subagent_copies_share_checkpoint_state(runtime: Runtime) -> None:
+    fixed_runtime = runtime.copy_for_fixed_subagent()
+    dynamic_runtime = runtime.copy_for_dynamic_subagent()
+
+    runtime.current_checkpoint_id = 3
+    runtime.turn_checkpoint_id = 30
+
+    assert fixed_runtime.current_checkpoint_id == 3
+    assert dynamic_runtime.current_checkpoint_id == 3
+    assert fixed_runtime.turn_checkpoint_id == 30
+    assert dynamic_runtime.turn_checkpoint_id == 30
+
+    fixed_runtime.current_checkpoint_id = 4
+    fixed_runtime.turn_checkpoint_id = 40
+    assert runtime.current_checkpoint_id == 4
+    assert runtime.turn_checkpoint_id == 40
+
+    dynamic_runtime.current_checkpoint_id = 5
+    dynamic_runtime.turn_checkpoint_id = 50
+    assert runtime.current_checkpoint_id == 5
+    assert runtime.turn_checkpoint_id == 50
+
+
+async def test_kimisoul_initializes_current_checkpoint_id_from_restored_context(
+    runtime: Runtime, tmp_path: Path
+) -> None:
+    context_file = tmp_path / "history.jsonl"
+    restored_context = Context(context_file)
+    await restored_context.checkpoint(add_user_message=False)
+    await restored_context.checkpoint(add_user_message=False)
+
+    context = Context(context_file)
+    assert await context.restore() is True
+
+    agent = Agent(
+        name="Test Agent",
+        system_prompt="Test system prompt.",
+        toolset=KimiToolset(),
+        runtime=runtime,
+    )
+    KimiSoul(agent, context=context)
+
+    assert runtime.current_checkpoint_id == 1
 
 
 async def test_load_agent_invalid_tools(agent_file_invalid_tools: Path, runtime: Runtime):

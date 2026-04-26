@@ -23,10 +23,17 @@ from kimi_cli.llm import ALL_MODEL_CAPABILITIES, LLM
 from kimi_cli.metadata import WorkDirMeta
 from kimi_cli.session import Session
 from kimi_cli.session_state import SessionState
-from kimi_cli.soul.agent import Agent, BuiltinSystemPromptArgs, LaborMarket, Runtime
+from kimi_cli.soul.agent import (
+    Agent,
+    BuiltinSystemPromptArgs,
+    LaborMarket,
+    Runtime,
+    RuntimeCheckpointState,
+)
 from kimi_cli.soul.approval import Approval
 from kimi_cli.soul.denwarenji import DenwaRenji
 from kimi_cli.soul.toolset import KimiToolset
+from kimi_cli.soul.workspace_checkpoint import WorkspaceCheckpointStore
 from kimi_cli.tools.dmail import SendDMail
 from kimi_cli.tools.file.glob import Glob
 from kimi_cli.tools.file.grep_local import Grep
@@ -180,6 +187,11 @@ def runtime(
         plugins=[],
         oauth=OAuthManager(config),
         additional_dirs=[],
+        workspace_checkpoints=WorkspaceCheckpointStore(
+            session_dir=session.dir,
+            work_dir=Path(str(session.work_dir)),
+        ),
+        checkpoint_state=RuntimeCheckpointState(),
     )
     rt.labor_market.add_fixed_subagent(
         "mocker",
@@ -245,10 +257,10 @@ def set_todo_list_tool() -> SetTodoList:
 
 
 @pytest.fixture
-def shell_tool(approval: Approval, environment: Environment) -> Generator[Shell]:
+def shell_tool(runtime: Runtime, approval: Approval, environment: Environment) -> Generator[Shell]:
     """Create a Shell tool instance."""
     with tool_call_context("Shell"):
-        yield Shell(approval, environment)
+        yield Shell(runtime, approval, environment)
 
 
 @pytest.fixture

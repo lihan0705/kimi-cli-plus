@@ -115,6 +115,9 @@ class KimiSoul:
         self._denwa_renji = agent.runtime.denwa_renji
         self._approval = agent.runtime.approval
         self._context = context
+        self._runtime.current_checkpoint_id = (
+            max(context.checkpoint_ids) if context.checkpoint_ids else None
+        )
         self._loop_control = agent.runtime.config.loop_control
         self._compaction = SimpleCompaction()  # TODO: maybe configurable and composable
 
@@ -197,6 +200,7 @@ class KimiSoul:
 
     async def _checkpoint(self):
         await self._context.checkpoint(self._checkpoint_with_user_message)
+        self._runtime.current_checkpoint_id = self._context.n_checkpoints - 1
 
     def steer(self, content: str | list[ContentPart]) -> None:
         """Queue a steer message for injection into the current turn."""
@@ -287,6 +291,7 @@ class KimiSoul:
             raise LLMNotSupported(self._runtime.llm, list(missing_caps))
 
         await self._checkpoint()  # this creates the checkpoint 0 on first run
+        self._runtime.turn_checkpoint_id = self._runtime.current_checkpoint_id
         await self._context.append_message(user_message)
         logger.debug("Appended user message to context")
         return await self._agent_loop()
@@ -511,7 +516,7 @@ class KimiSoul:
 
                 logger.debug("Beginning step {step_no}", step_no=step_no)
                 await self._checkpoint()
-                self._denwa_renji.set_n_checkpoints(self._context.n_checkpoints)
+                self._denwa_renji.set_checkpoints(self._context.checkpoint_ids)
                 step_outcome = await self._step()
             except BackToTheFuture as e:
                 back_to_the_future = e
@@ -611,9 +616,8 @@ class KimiSoul:
 
         # handle pending D-Mail
         if dmail := self._denwa_renji.fetch_pending_dmail():
-            assert dmail.checkpoint_id >= 0, "DenwaRenji guarantees checkpoint_id >= 0"
-            assert dmail.checkpoint_id < self._context.n_checkpoints, (
-                "DenwaRenji guarantees checkpoint_id < n_checkpoints"
+            assert self._context.has_checkpoint(dmail.checkpoint_id), (
+                "DenwaRenji guarantees checkpoint_id exists"
             )
             # raise to let the main loop take us back to the future
             raise BackToTheFuture(

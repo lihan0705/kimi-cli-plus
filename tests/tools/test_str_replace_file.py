@@ -6,8 +6,18 @@ from pathlib import Path
 
 from kaos.path import KaosPath
 
+from kimi_cli.soul.agent import Runtime
 from kimi_cli.tools.file.replace import Edit, Params, StrReplaceFile
 from kimi_cli.wire.types import DiffDisplayBlock
+
+
+class FakeWorkspaceCheckpoints:
+    def __init__(self) -> None:
+        self.calls: list[tuple[int, str]] = []
+
+    def create_once(self, conversation_checkpoint_id: int, *, reason: str):
+        self.calls.append((conversation_checkpoint_id, reason))
+        return object()
 
 
 async def test_replace_single_occurrence(
@@ -246,3 +256,22 @@ async def test_replace_empty_strings(
     assert not result.is_error
     assert "successfully edited" in result.message
     assert await file_path.read_text() == "Hello !"
+
+
+async def test_str_replace_file_creates_workspace_checkpoint(
+    str_replace_file_tool: StrReplaceFile,
+    runtime: Runtime,
+    temp_work_dir: KaosPath,
+) -> None:
+    checkpoints = FakeWorkspaceCheckpoints()
+    runtime.workspace_checkpoints = checkpoints  # pyright: ignore[reportAttributeAccessIssue]  # type: ignore[invalid-assignment]
+    runtime.current_checkpoint_id = 3
+    file_path = temp_work_dir / "checkpointed.txt"
+    await file_path.write_text("old content")
+
+    result = await str_replace_file_tool(
+        Params(path=str(file_path), edit=[Edit(old="old", new="new")])
+    )
+
+    assert not result.is_error
+    assert checkpoints.calls == [(3, "StrReplaceFile")]
