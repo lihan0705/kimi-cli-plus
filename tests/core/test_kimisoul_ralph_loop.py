@@ -18,6 +18,7 @@ from kimi_cli.soul import run_soul
 from kimi_cli.soul.agent import Agent, Runtime
 from kimi_cli.soul.context import Context
 from kimi_cli.soul.kimisoul import KimiSoul
+from kimi_cli.soul.workspace_checkpoint import WorkspaceCheckpointStore
 from kimi_cli.tools.utils import ToolRejectedError
 from kimi_cli.utils.aioqueue import QueueShutDown
 from kimi_cli.wire import Wire
@@ -115,6 +116,11 @@ def _runtime_with_llm(runtime: Runtime, llm: LLM) -> Runtime:
         plugins=runtime.plugins,
         oauth=runtime.oauth,
         additional_dirs=runtime.additional_dirs,
+        workspace_checkpoints=WorkspaceCheckpointStore(
+            session_dir=runtime.session.dir,
+            work_dir=Path(str(runtime.session.work_dir)),
+        ),
+        current_checkpoint_id=None,
     )
 
 
