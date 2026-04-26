@@ -16,7 +16,7 @@ class DenwaRenjiError(Exception):
 class DenwaRenji:
     def __init__(self):
         self._pending_dmail: DMail | None = None
-        self._n_checkpoints: int = 0
+        self._checkpoints: frozenset[int] = frozenset()
 
     def send_dmail(self, dmail: DMail):
         """Send a D-Mail. Intended to be called by the SendDMail tool."""
@@ -24,13 +24,17 @@ class DenwaRenji:
             raise DenwaRenjiError("Only one D-Mail can be sent at a time")
         if dmail.checkpoint_id < 0:
             raise DenwaRenjiError("The checkpoint ID can not be negative")
-        if dmail.checkpoint_id >= self._n_checkpoints:
+        if dmail.checkpoint_id not in self._checkpoints:
             raise DenwaRenjiError("There is no checkpoint with the given ID")
         self._pending_dmail = dmail
 
+    def set_checkpoints(self, checkpoints: set[int] | frozenset[int]):
+        """Set available checkpoint IDs. Intended to be called by the soul."""
+        self._checkpoints = frozenset(checkpoints)
+
     def set_n_checkpoints(self, n_checkpoints: int):
         """Set the number of checkpoints. Intended to be called by the soul."""
-        self._n_checkpoints = n_checkpoints
+        self.set_checkpoints(set(range(n_checkpoints)))
 
     def fetch_pending_dmail(self) -> DMail | None:
         """Fetch a pending D-Mail. Intended to be called by the soul."""

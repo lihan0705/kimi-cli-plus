@@ -511,7 +511,7 @@ class KimiSoul:
 
                 logger.debug("Beginning step {step_no}", step_no=step_no)
                 await self._checkpoint()
-                self._denwa_renji.set_n_checkpoints(self._context.n_checkpoints)
+                self._denwa_renji.set_checkpoints(self._context.checkpoint_ids)
                 step_outcome = await self._step()
             except BackToTheFuture as e:
                 back_to_the_future = e
@@ -611,9 +611,8 @@ class KimiSoul:
 
         # handle pending D-Mail
         if dmail := self._denwa_renji.fetch_pending_dmail():
-            assert dmail.checkpoint_id >= 0, "DenwaRenji guarantees checkpoint_id >= 0"
-            assert dmail.checkpoint_id < self._context.n_checkpoints, (
-                "DenwaRenji guarantees checkpoint_id < n_checkpoints"
+            assert self._context.has_checkpoint(dmail.checkpoint_id), (
+                "DenwaRenji guarantees checkpoint_id exists"
             )
             # raise to let the main loop take us back to the future
             raise BackToTheFuture(

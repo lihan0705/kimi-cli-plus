@@ -122,6 +122,7 @@ async def test_restore_tracks_non_contiguous_checkpoint_records(tmp_path: Path) 
     assert await context.restore() is True
 
     assert context.n_checkpoints == 3
+    assert context.checkpoint_ids == frozenset({0, 2})
     assert context.has_checkpoint(0) is True
     assert context.has_checkpoint(1) is False
     assert context.has_checkpoint(2) is True

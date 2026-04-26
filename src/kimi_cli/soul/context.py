@@ -71,6 +71,10 @@ class Context:
         return self._next_checkpoint_id
 
     @property
+    def checkpoint_ids(self) -> frozenset[int]:
+        return frozenset(self._checkpoints)
+
+    @property
     def file_backend(self) -> Path:
         return self._file_backend
 
