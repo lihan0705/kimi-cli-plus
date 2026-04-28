@@ -468,12 +468,9 @@ async def list_sessions(app: Shell, args: str):
     if soul is None:
         return
 
-    work_dir = soul.runtime.session.work_dir
     current_session = soul.runtime.session
     current_session_id = current_session.id
-    sessions = [
-        session for session in await Session.list(work_dir) if session.id != current_session_id
-    ]
+    sessions = [session for session in await Session.list_all() if session.id != current_session_id]
 
     await current_session.refresh()
     sessions.insert(0, current_session)

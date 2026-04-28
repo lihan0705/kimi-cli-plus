@@ -146,6 +146,20 @@ class Session:
         return session
 
     @staticmethod
+    async def find_any(session_id: str) -> Session | None:
+        """Find a session by ID across all work directories."""
+        metadata = load_metadata()
+        for work_dir_meta in metadata.work_dirs:
+            try:
+                work_dir = KaosPath.unsafe_from_local_path(Path(work_dir_meta.path))
+            except Exception:
+                continue
+            session = await Session.find(work_dir, session_id)
+            if session is not None:
+                return session
+        return None
+
+    @staticmethod
     async def find(work_dir: KaosPath, session_id: str) -> Session | None:
         """Find a session by work directory and session ID."""
         work_dir = work_dir.canonical()
@@ -187,6 +201,50 @@ class Session:
         )
         await session.refresh()
         return session
+
+    @staticmethod
+    async def list_all() -> builtins.list[Session]:
+        """List all non-empty sessions across all work directories."""
+        metadata = load_metadata()
+        sessions: list[Session] = []
+
+        for work_dir_meta in metadata.work_dirs:
+            try:
+                work_dir = KaosPath.unsafe_from_local_path(Path(work_dir_meta.path)).canonical()
+            except Exception:
+                continue
+
+            session_ids = {
+                path.name if path.is_dir() else path.stem
+                for path in work_dir_meta.sessions_dir.iterdir()
+                if path.is_dir() or path.suffix == ".jsonl"
+            }
+
+            for session_id in session_ids:
+                _migrate_session_context_file(work_dir_meta, session_id)
+                session_dir = work_dir_meta.sessions_dir / session_id
+                if not session_dir.is_dir():
+                    continue
+                context_file = session_dir / "context.jsonl"
+                if not context_file.exists():
+                    continue
+                session = Session(
+                    id=session_id,
+                    work_dir=work_dir,
+                    work_dir_meta=work_dir_meta,
+                    context_file=context_file,
+                    wire_file=WireFile(path=session_dir / "wire.jsonl"),
+                    state=load_session_state(session_dir),
+                    title="",
+                    updated_at=0.0,
+                )
+                if session.is_empty():
+                    continue
+                await session.refresh()
+                sessions.append(session)
+
+        sessions.sort(key=lambda session: session.updated_at, reverse=True)
+        return sessions
 
     @staticmethod
     async def list(work_dir: KaosPath) -> builtins.list[Session]:

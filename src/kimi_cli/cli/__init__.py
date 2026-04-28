@@ -482,7 +482,7 @@ def kimi(
             The session and whether the run succeeded.
         """
         if session_id is not None:
-            session = await Session.find(work_dir, session_id)
+            session = await Session.find_any(session_id)
             if session is None:
                 logger.info(
                     "Session {session_id} not found, creating new session", session_id=session_id
