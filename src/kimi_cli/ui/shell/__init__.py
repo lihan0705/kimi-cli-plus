@@ -22,7 +22,13 @@ from kimi_cli.ui.shell.prompt import CustomPromptSession, PromptMode, toast
 from kimi_cli.ui.shell.replay import replay_recent_history
 from kimi_cli.ui.shell.slash import registry as shell_slash_registry
 from kimi_cli.ui.shell.slash import shell_mode_registry
-from kimi_cli.ui.shell.update import LATEST_VERSION_FILE, UpdateResult, do_update, semver_tuple
+from kimi_cli.ui.shell.update import (
+    LATEST_VERSION_FILE,
+    UPGRADE_COMMAND,
+    UpdateResult,
+    do_update,
+    semver_tuple,
+)
 from kimi_cli.ui.shell.visualize import visualize
 from kimi_cli.utils.envvar import get_env_bool
 from kimi_cli.utils.logging import open_original_stderr
@@ -354,7 +360,7 @@ class Shell:
         if result == UpdateResult.UPDATE_AVAILABLE:
             while True:
                 toast(
-                    "new version found, run `uv tool upgrade kimi-cli` to upgrade",
+                    f"new version found, run `{UPGRADE_COMMAND}` to upgrade",
                     topic="update",
                     duration=30.0,
                 )
@@ -426,7 +432,7 @@ def _print_welcome_info(name: str, info_items: list[WelcomeInfoItem]) -> None:
             rows.append(
                 Text.from_markup(
                     f"\n[yellow]New version available: {latest_version}. "
-                    "Please run `uv tool upgrade kimi-cli` to upgrade.[/yellow]"
+                    f"Please run `{UPGRADE_COMMAND}` to upgrade.[/yellow]"
                 )
             )
 
