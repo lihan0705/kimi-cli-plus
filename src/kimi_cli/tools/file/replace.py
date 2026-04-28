@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from typing import override
 
@@ -135,7 +136,11 @@ class StrReplaceFile(CallableTool2[Params]):
             if checkpoint_id is None:
                 checkpoint_id = self._runtime.current_checkpoint_id
             if checkpoint_id is not None:
-                self._runtime.workspace_checkpoints.create_once(checkpoint_id, reason=self.name)
+                await asyncio.to_thread(
+                    self._runtime.workspace_checkpoints.ensure_checkpoint,
+                    checkpoint_id,
+                    reason=self.name,
+                )
 
             # Write the modified content back to the file
             await p.write_text(content, errors="replace")

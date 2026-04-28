@@ -15,9 +15,9 @@ class FakeWorkspaceCheckpoints:
     def __init__(self) -> None:
         self.calls: list[tuple[int, str]] = []
 
-    def create_once(self, conversation_checkpoint_id: int, *, reason: str):
+    def ensure_checkpoint(self, conversation_checkpoint_id: int, *, reason: str):
         self.calls.append((conversation_checkpoint_id, reason))
-        return object()
+        return True
 
 
 async def test_replace_single_occurrence(

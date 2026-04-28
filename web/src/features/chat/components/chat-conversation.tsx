@@ -42,6 +42,10 @@ type ChatConversationProps = {
   onForkSession?: (turnIndex: number) => void;
   onDeleteTurn?: (turnIndex: number) => void;
   onEditTurn?: (turnIndex: number, newContent: string) => void;
+  onRewindConversation?: (turnIndex: number) => void;
+  onRewindAndRestore?: (turnIndex: number) => void;
+  rewindFileLabels?: Map<number, string>;
+  onPrefetchRewindLabel?: (turnIndex: number) => void;
 };
 
 export function ChatConversation({
@@ -59,6 +63,10 @@ export function ChatConversation({
   onForkSession,
   onDeleteTurn,
   onEditTurn,
+  onRewindConversation,
+  onRewindAndRestore,
+  rewindFileLabels,
+  onPrefetchRewindLabel,
 }: ChatConversationProps) {
   const listRef = useRef<VirtualizedMessageListHandle>(null);
   const listStateByConversationRef = useRef<Record<string, StateSnapshot>>({});
@@ -244,6 +252,10 @@ export function ChatConversation({
             onForkSession={onForkSession}
             onDeleteTurn={handleDeleteTurnPreservingScroll}
             onEditTurn={handleEditTurnPreservingScroll}
+            onRewindConversation={onRewindConversation}
+            onRewindAndRestore={onRewindAndRestore}
+            rewindFileLabels={rewindFileLabels}
+            onPrefetchRewindLabel={onPrefetchRewindLabel}
           />
         </div>
       )}

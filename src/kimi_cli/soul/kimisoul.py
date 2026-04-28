@@ -198,9 +198,10 @@ class KimiSoul:
     def wire_file(self) -> WireFile:
         return self._runtime.session.wire_file
 
-    async def _checkpoint(self):
+    async def _checkpoint(self, reason: str = "Turn checkpoint"):
         await self._context.checkpoint(self._checkpoint_with_user_message)
-        self._runtime.current_checkpoint_id = self._context.n_checkpoints - 1
+        checkpoint_id = self._context.n_checkpoints - 1
+        self._runtime.current_checkpoint_id = checkpoint_id
 
     def steer(self, content: str | list[ContentPart]) -> None:
         """Queue a steer message for injection into the current turn."""
@@ -290,8 +291,11 @@ class KimiSoul:
         if missing_caps := check_message(user_message, self._runtime.llm.capabilities):
             raise LLMNotSupported(self._runtime.llm, list(missing_caps))
 
-        await self._checkpoint()  # this creates the checkpoint 0 on first run
+        text_input = user_message.extract_text(" ")
+        # This creates checkpoint 0 on first run.
+        await self._checkpoint(reason=f"User: {text_input[:50]}...")
         self._runtime.turn_checkpoint_id = self._runtime.current_checkpoint_id
+        self._runtime.workspace_checkpoints.new_turn()
         await self._context.append_message(user_message)
         logger.debug("Appended user message to context")
         return await self._agent_loop()

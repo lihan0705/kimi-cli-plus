@@ -2,12 +2,14 @@ import {
   memo,
   type ReactElement,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import type { ChatStatus } from "ai";
 import type { PromptInputMessage } from "@ai-elements";
+import { usePromptInputController } from "@/components/ai-elements/prompt-input";
 import type { ApprovalResponseDecision, TokenUsage } from "@/hooks/wireTypes";
 import type { LiveMessage } from "@/hooks/types";
 import type { SessionFileEntry } from "@/hooks/useSessions";
@@ -22,6 +24,7 @@ import { ChatConversation } from "./components/chat-conversation";
 import { ChatPromptComposer } from "./components/chat-prompt-composer";
 import { ApprovalDialog } from "./components/approval-dialog";
 import { QuestionDialog, usePendingQuestion } from "./components/question-dialog";
+import { useCheckpointPreview } from "@/hooks/useCheckpoints";
 import { useGitDiffStats } from "@/hooks/useGitDiffStats";
 import {
   deriveActivityStatus,
@@ -88,8 +91,12 @@ type ChatWorkspaceProps = {
   onDeleteTurn?: (turnIndex: number) => void;
   /** Edit turn and re-submit */
   onEditTurn?: (turnIndex: number, newContent: string) => void;
+  /** Rewind session to a turn, optionally restoring workspace files */
+  onRewindToTurn?: (
+    turnIndex: number,
+    restoreFiles: boolean,
+  ) => Promise<string | null>;
 };
-
 type ToolApproval = NonNullable<LiveMessage["toolCall"]>["approval"];
 
 export const ChatWorkspace = memo(function ChatWorkspaceComponent({
@@ -119,7 +126,9 @@ export const ChatWorkspace = memo(function ChatWorkspaceComponent({
   onForkSession,
   onDeleteTurn,
   onEditTurn,
+  onRewindToTurn,
 }: ChatWorkspaceProps): ReactElement {
+  const { textInput } = usePromptInputController();
   const [blocksExpanded, setBlocksExpanded] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [pendingApprovalMap, setPendingApprovalMap] = useState<
@@ -128,6 +137,15 @@ export const ChatWorkspace = memo(function ChatWorkspaceComponent({
   const [pendingQuestionMap, setPendingQuestionMap] = useState<
     Record<string, boolean>
   >({});
+
+  // Rewind state: file labels per turn (fetched lazily)
+  const [rewindFileLabels, setRewindFileLabels] = useState<Map<number, string>>(new Map());
+  const { fetchPreview } = useCheckpointPreview();
+
+  // Labels are keyed only by turnIndex; clear on session switch to avoid stale cross-session labels.
+  useEffect(() => {
+    setRewindFileLabels(new Map());
+  }, [currentSession?.sessionId]);
 
   // Check if there's a pending question to replace the prompt composer
   const hasPendingQuestion = usePendingQuestion(messages) !== null;
@@ -246,6 +264,43 @@ export const ChatWorkspace = memo(function ChatWorkspaceComponent({
     [onQuestionResponse],
   );
 
+  const handleRewindConversation = useCallback(
+    async (turnIndex: number) => {
+      if (!onRewindToTurn) return;
+      const userMessage = await onRewindToTurn(turnIndex, false);
+      if (userMessage) {
+        textInput.setInput(userMessage);
+      }
+    },
+    [onRewindToTurn, textInput],
+  );
+
+  const handleRewindAndRestore = useCallback(
+    async (turnIndex: number) => {
+      if (!onRewindToTurn) return;
+      const userMessage = await onRewindToTurn(turnIndex, true);
+      if (userMessage) {
+        textInput.setInput(userMessage);
+      }
+    },
+    [onRewindToTurn, textInput],
+  );
+
+  // When a user message with turnIndex mounts, lazily fetch file change count
+  const prefetchRewindLabel = useCallback(
+    async (turnIndex: number) => {
+      if (!currentSession?.sessionId) return;
+      if (rewindFileLabels.has(turnIndex)) return;
+      const result = await fetchPreview(currentSession.sessionId, turnIndex);
+      if (result) {
+        const count = result.files.length;
+        const label = count === 0 ? "no file changes" : `${count} file${count !== 1 ? "s" : ""} changed`;
+        setRewindFileLabels((prev) => new Map(prev).set(turnIndex, label));
+      }
+    },
+    [fetchPreview, currentSession, rewindFileLabels],
+  );
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden lg:sticky lg:top-4 lg:min-h-[560px]">
       <div className="relative flex h-full flex-col">
@@ -280,6 +335,10 @@ export const ChatWorkspace = memo(function ChatWorkspaceComponent({
             onForkSession={onForkSession}
             onDeleteTurn={onDeleteTurn}
             onEditTurn={onEditTurn}
+            onRewindConversation={handleRewindConversation}
+            onRewindAndRestore={handleRewindAndRestore}
+            rewindFileLabels={rewindFileLabels}
+            onPrefetchRewindLabel={prefetchRewindLabel}
           />
         </div>
 

@@ -181,6 +181,29 @@ class RejectToolset:
         return ToolResult(tool_call_id=tool_call.id, return_value=ToolRejectedError())
 
 
+class FailingWorkspaceCheckpoints:
+    def ensure_checkpoint(self, checkpoint_id: int, *, reason: str):
+        raise AssertionError("conversation checkpoints must not snapshot the workspace")
+
+
+@pytest.mark.asyncio
+async def test_conversation_checkpoint_does_not_snapshot_workspace(
+    runtime: Runtime, tmp_path: Path
+) -> None:
+    runtime.workspace_checkpoints = FailingWorkspaceCheckpoints()  # pyright: ignore[reportAttributeAccessIssue]  # type: ignore[invalid-assignment]
+    agent = Agent(
+        name="Test Agent",
+        system_prompt="Test system prompt.",
+        toolset=SimpleToolset(),
+        runtime=runtime,
+    )
+    soul = KimiSoul(agent, context=Context(file_backend=tmp_path / "history.jsonl"))
+
+    await soul._checkpoint(reason="User: hi...")
+
+    assert runtime.current_checkpoint_id == 0
+
+
 @pytest.mark.asyncio
 async def test_ralph_loop_replays_original_prompt(runtime: Runtime, tmp_path: Path) -> None:
     runtime.config.loop_control.max_ralph_iterations = 2

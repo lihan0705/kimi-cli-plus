@@ -315,19 +315,6 @@ class KimiCLI:
                     level=WelcomeInfoItem.Level.INFO,
                 )
             )
-            if self._soul.model_name not in (
-                "kimi-for-coding",
-                "kimi-code",
-                "kimi-k2.5",
-                "kimi-k2-5",
-            ):
-                welcome_info.append(
-                    WelcomeInfoItem(
-                        name="Tip",
-                        value="send /login to use our latest kimi-k2.5 model",
-                        level=WelcomeInfoItem.Level.WARN,
-                    )
-                )
         welcome_info.append(
             WelcomeInfoItem(
                 name="\nTip",
@@ -336,6 +323,13 @@ class KimiCLI:
                     "\n"
                     "     Type /web to switch, or next time run `kimi web` directly."
                 ),
+                level=WelcomeInfoItem.Level.INFO,
+            )
+        )
+        welcome_info.append(
+            WelcomeInfoItem(
+                name="\nTip",
+                value="Type /tree to view all conversation history and restore conversations.",
                 level=WelcomeInfoItem.Level.INFO,
             )
         )

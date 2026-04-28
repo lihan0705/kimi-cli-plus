@@ -9,6 +9,7 @@ import {
   MessageDeleteButton,
   MessageEditButton,
   MessageForkButton,
+  MessageRewindButton,
   UserMessageContent,
 } from "@ai-elements";
 import {
@@ -53,6 +54,14 @@ export type VirtualizedMessageListProps = {
   onDeleteTurn?: (turnIndex: number) => void;
   /** Callback to edit turn and re-submit */
   onEditTurn?: (turnIndex: number, newContent: string) => void;
+  /** Callback to rewind conversation only */
+  onRewindConversation?: (turnIndex: number) => void;
+  /** Callback to rewind and restore files */
+  onRewindAndRestore?: (turnIndex: number) => void;
+  /** File change label per turn (e.g. "3 files changed") */
+  rewindFileLabels?: Map<number, string>;
+  /** Prefetch file change label for a turn (called on hover) */
+  onPrefetchRewindLabel?: (turnIndex: number) => void;
 };
 
 export type VirtualizedMessageListHandle = {
@@ -174,6 +183,10 @@ function VirtualizedMessageListComponent(
     onForkSession,
     onDeleteTurn,
     onEditTurn,
+    onRewindConversation,
+    onRewindAndRestore,
+    rewindFileLabels,
+    onPrefetchRewindLabel,
     }: VirtualizedMessageListProps,
 
   ref: React.Ref<VirtualizedMessageListHandle>,
@@ -372,6 +385,17 @@ function VirtualizedMessageListComponent(
                       <MessageCopyButton content={message.content} />
                       {onEditTurn && message.turnIndex !== undefined && (
                         <MessageEditButton onEdit={() => handleStartEdit(message.turnIndex!, message.content || "")} />
+                      )}
+                      {onRewindConversation && onRewindAndRestore && message.turnIndex !== undefined && (
+                        <span
+                          onMouseEnter={() => onPrefetchRewindLabel?.(message.turnIndex!)}
+                        >
+                          <MessageRewindButton
+                            onRewindConversation={() => onRewindConversation(message.turnIndex!)}
+                            onRewindAndRestore={() => onRewindAndRestore(message.turnIndex!)}
+                            fileChangeLabel={rewindFileLabels?.get(message.turnIndex!)}
+                          />
+                        </span>
                       )}
                       {onDeleteTurn && message.turnIndex !== undefined && (
                         <MessageDeleteButton onDelete={() => onDeleteTurn(message.turnIndex!)} />

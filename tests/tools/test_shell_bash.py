@@ -21,9 +21,9 @@ class FakeWorkspaceCheckpoints:
     def __init__(self) -> None:
         self.calls: list[tuple[int, str]] = []
 
-    def create_once(self, conversation_checkpoint_id: int, *, reason: str):
+    def ensure_checkpoint(self, conversation_checkpoint_id: int, *, reason: str):
         self.calls.append((conversation_checkpoint_id, reason))
-        return object()
+        return True
 
 
 async def test_simple_command(shell_tool: Shell):
@@ -231,3 +231,24 @@ async def test_shell_creates_workspace_checkpoint(
 
     assert not result.is_error
     assert checkpoints.calls == [(3, "Shell")]
+
+
+async def test_shell_skips_workspace_checkpoint_for_read_only_command(
+    shell_tool: Shell,
+    runtime: Runtime,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checkpoints = FakeWorkspaceCheckpoints()
+    runtime.workspace_checkpoints = checkpoints  # pyright: ignore[reportAttributeAccessIssue]  # type: ignore[invalid-assignment]
+    runtime.current_checkpoint_id = 3
+
+    async def fake_run_shell_command(command, stdout_cb, stderr_cb, timeout):
+        stdout_cb(b"file.txt\n")
+        return 0
+
+    monkeypatch.setattr(shell_tool, "_run_shell_command", fake_run_shell_command)
+
+    result = await shell_tool(Params(command="ls -la"))
+
+    assert not result.is_error
+    assert checkpoints.calls == []

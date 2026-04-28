@@ -214,9 +214,13 @@ def _has_oauth_tokens(server_url: str) -> bool:
 
     async def _check() -> bool:
         try:
-            from fastmcp.client.auth.oauth import FileTokenStorage
+            from fastmcp.client.auth.oauth import TokenStorageAdapter
+            from key_value.aio.stores.filetree import FileTreeStore
 
-            storage = FileTokenStorage(server_url=server_url)
+            from kimi_cli.share import get_share_dir
+
+            store = FileTreeStore(data_directory=get_share_dir() / "oauth-tokens")
+            storage = TokenStorageAdapter(async_key_value=store, server_url=server_url)
             tokens = await storage.get_tokens()
             return tokens is not None
         except Exception:
@@ -298,11 +302,20 @@ def mcp_reset_auth(
     """Reset OAuth authorization for an MCP server (clear cached tokens)."""
     server = _get_mcp_server(name, require_remote=True)
 
-    try:
-        from fastmcp.client.auth.oauth import FileTokenStorage
+    async def _clear_tokens() -> None:
+        from fastmcp.client.auth.oauth import TokenStorageAdapter
+        from key_value.aio.stores.filetree import FileTreeStore
 
-        storage = FileTokenStorage(server_url=server["url"])
-        storage.clear()
+        from kimi_cli.share import get_share_dir
+
+        store = FileTreeStore(data_directory=get_share_dir() / "oauth-tokens")
+        storage = TokenStorageAdapter(async_key_value=store, server_url=server["url"])
+        await storage.clear()
+
+    import asyncio
+
+    try:
+        asyncio.run(_clear_tokens())
         typer.echo(f"OAuth tokens cleared for '{name}'.")
     except ImportError:
         typer.echo("OAuth support not available.", err=True)

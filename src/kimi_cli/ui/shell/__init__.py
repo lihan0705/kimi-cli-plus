@@ -22,7 +22,13 @@ from kimi_cli.ui.shell.prompt import CustomPromptSession, PromptMode, toast
 from kimi_cli.ui.shell.replay import replay_recent_history
 from kimi_cli.ui.shell.slash import registry as shell_slash_registry
 from kimi_cli.ui.shell.slash import shell_mode_registry
-from kimi_cli.ui.shell.update import LATEST_VERSION_FILE, UpdateResult, do_update, semver_tuple
+from kimi_cli.ui.shell.update import (
+    LATEST_VERSION_FILE,
+    UPGRADE_COMMAND,
+    UpdateResult,
+    do_update,
+    semver_tuple,
+)
 from kimi_cli.ui.shell.visualize import visualize
 from kimi_cli.utils.envvar import get_env_bool
 from kimi_cli.utils.logging import open_original_stderr
@@ -42,6 +48,7 @@ class Shell:
     def __init__(self, soul: Soul, welcome_info: list[WelcomeInfoItem] | None = None):
         self.soul = soul
         self._welcome_info = list(welcome_info or [])
+        self._pending_prefill: str = ""
         self._background_tasks: set[asyncio.Task[Any]] = set()
         self._available_slash_commands: dict[str, SlashCommand[Any]] = {
             **{cmd.name: cmd for cmd in soul.available_slash_commands},
@@ -53,6 +60,14 @@ class Shell:
     def available_slash_commands(self) -> dict[str, SlashCommand[Any]]:
         """Get all available slash commands, including shell-level and soul-level commands."""
         return self._available_slash_commands
+
+    def set_pending_prefill(self, text: str) -> None:
+        self._pending_prefill = text
+
+    def consume_pending_prefill(self) -> str:
+        text = self._pending_prefill
+        self._pending_prefill = ""
+        return text
 
     async def run(self, command: str | None = None) -> bool:
         if command is not None:
@@ -90,7 +105,9 @@ class Shell:
                     ensure_tty_sane()
                     try:
                         ensure_new_line()
-                        user_input = await prompt_session.prompt()
+                        user_input = await prompt_session.prompt(
+                            default=self.consume_pending_prefill()
+                        )
                     except KeyboardInterrupt:
                         logger.debug("Exiting by KeyboardInterrupt")
                         console.print("[grey50]Tip: press Ctrl-D or send 'exit' to quit[/grey50]")
@@ -343,7 +360,7 @@ class Shell:
         if result == UpdateResult.UPDATE_AVAILABLE:
             while True:
                 toast(
-                    "new version found, run `uv tool upgrade kimi-cli` to upgrade",
+                    f"new version found, run `{UPGRADE_COMMAND}` to upgrade",
                     topic="update",
                     duration=30.0,
                 )
@@ -415,7 +432,7 @@ def _print_welcome_info(name: str, info_items: list[WelcomeInfoItem]) -> None:
             rows.append(
                 Text.from_markup(
                     f"\n[yellow]New version available: {latest_version}. "
-                    "Please run `uv tool upgrade kimi-cli` to upgrade.[/yellow]"
+                    f"Please run `{UPGRADE_COMMAND}` to upgrade.[/yellow]"
                 )
             )
 

@@ -14,6 +14,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -38,6 +44,7 @@ import {
   PaperclipIcon,
   PencilIcon,
   TrashIcon,
+  Undo2Icon,
   VideoIcon,
   XIcon,
 } from "lucide-react";
@@ -769,3 +776,53 @@ export const MessageToolbar = ({
     {children}
   </div>
 );
+
+export type MessageRewindButtonProps = {
+  onRewindConversation: () => void;
+  onRewindAndRestore: () => void;
+  fileChangeLabel?: string; // e.g. "3 files changed" or "no file changes"
+};
+
+export const MessageRewindButton = ({
+  onRewindConversation,
+  onRewindAndRestore,
+  fileChangeLabel,
+}: MessageRewindButtonProps) => {
+  return (
+    <DropdownMenu>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+                className="size-6 text-muted-foreground hover:text-foreground"
+              >
+                <Undo2Icon className="size-3" />
+                <span className="sr-only">Rewind to this point</span>
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent className="px-1.5 py-0.5">
+            <p className="text-[12px]">Rewind to this point</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <DropdownMenuContent align="start" side="top">
+        <DropdownMenuItem onClick={onRewindConversation} className="text-xs">
+          <Undo2Icon className="size-3 mr-2" />
+          Conversation only
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onRewindAndRestore} className="text-xs">
+          <Undo2Icon className="size-3 mr-2" />
+          <span>Rewind + restore files</span>
+          {fileChangeLabel && (
+            <span className="ml-1 text-muted-foreground">[{fileChangeLabel}]</span>
+          )}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
