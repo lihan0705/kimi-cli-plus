@@ -1,4 +1,5 @@
 import asyncio
+import shlex
 from collections.abc import Callable
 from pathlib import Path
 from typing import override
@@ -16,6 +17,23 @@ from kimi_cli.utils.environment import Environment
 from kimi_cli.utils.subprocess_env import get_clean_env
 
 MAX_TIMEOUT = 5 * 60
+READ_ONLY_COMMANDS = {
+    "cat",
+    "du",
+    "file",
+    "find",
+    "grep",
+    "head",
+    "ls",
+    "pwd",
+    "rg",
+    "sed",
+    "stat",
+    "tail",
+    "tree",
+    "wc",
+}
+SHELL_MUTATION_TOKENS = {";", "&&", "||", "|", ">", ">>", "<", "<<", "$(", "`"}
 
 
 class Params(BaseModel):
@@ -29,6 +47,23 @@ class Params(BaseModel):
         ge=1,
         le=MAX_TIMEOUT,
     )
+
+
+def _is_read_only_shell_command(command: str) -> bool:
+    if any(token in command for token in SHELL_MUTATION_TOKENS):
+        return False
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return False
+    if not parts:
+        return False
+    command_name = Path(parts[0]).name
+    if command_name not in READ_ONLY_COMMANDS:
+        return False
+    if command_name == "find" and "-delete" in parts:
+        return False
+    return not (command_name == "sed" and any(part.startswith("-i") for part in parts[1:]))
 
 
 class Shell(CallableTool2[Params]):
@@ -72,8 +107,12 @@ class Shell(CallableTool2[Params]):
         checkpoint_id = self._runtime.turn_checkpoint_id
         if checkpoint_id is None:
             checkpoint_id = self._runtime.current_checkpoint_id
-        if checkpoint_id is not None:
-            self._runtime.workspace_checkpoints.create_once(checkpoint_id, reason=self.name)
+        if checkpoint_id is not None and not _is_read_only_shell_command(params.command):
+            await asyncio.to_thread(
+                self._runtime.workspace_checkpoints.ensure_checkpoint,
+                checkpoint_id,
+                reason=self.name,
+            )
 
         def stdout_cb(line: bytes):
             line_str = line.decode(encoding="utf-8", errors="replace")

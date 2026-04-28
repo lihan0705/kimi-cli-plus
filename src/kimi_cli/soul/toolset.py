@@ -233,9 +233,13 @@ class KimiToolset:
         async def _check_oauth_tokens(server_url: str) -> bool:
             """Check if OAuth tokens exist for the server."""
             try:
-                from fastmcp.client.auth.oauth import FileTokenStorage
+                from fastmcp.client.auth.oauth import TokenStorageAdapter
+                from key_value.aio.stores.filetree import FileTreeStore
 
-                storage = FileTokenStorage(server_url=server_url)
+                from kimi_cli.share import get_share_dir
+
+                store = FileTreeStore(data_directory=get_share_dir() / "oauth-tokens")
+                storage = TokenStorageAdapter(async_key_value=store, server_url=server_url)
                 tokens = await storage.get_tokens()
                 return tokens is not None
             except Exception:

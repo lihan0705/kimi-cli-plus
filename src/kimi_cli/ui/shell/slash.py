@@ -459,7 +459,6 @@ async def tree(app: Shell, args: str):
     if soul is None:
         return
     await run_tree(app, args)
-    raise Reload(session_id=soul.runtime.session.id)
 
 
 @registry.command(name="sessions", aliases=["resume"])

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from rich.console import Console
 
@@ -12,6 +12,61 @@ if TYPE_CHECKING:
 
 console = Console()
 TreeMode = Literal["conversation", "restore", "cancel"]
+MAX_TITLE_LEN = 24
+ChoiceLabel = list[tuple[str, str]]
+
+
+def _short_title(title: str) -> str:
+    text = " ".join(title.split())
+    if len(text) <= MAX_TITLE_LEN:
+        return text
+    return text[: MAX_TITLE_LEN - 1] + "..."
+
+
+def _format_checkpoint_label(
+    node: TimelineNode,
+    store: Any,
+    next_workspace_checkpoint_id: int | None,
+) -> ChoiceLabel:
+    label = f"#{node.checkpoint_id} {_short_title(node.title)}"
+    commit_hash = store.get(node.checkpoint_id)
+    has_own_snapshot = commit_hash is not None
+
+    if not has_own_snapshot:
+        # Only conversation checkpoint, no workspace snapshot for this turn
+        return [("", f"{label} "), ("fg:#888888 italic", "[no files]")]
+
+    if next_workspace_checkpoint_id is None:
+        # Last workspace checkpoint — compare against current worktree
+        change_count = len(store.preview_restore(node.checkpoint_id))
+    else:
+        # Files changed between this snapshot and the next one
+        change_count = store.get_change_count(
+            next_workspace_checkpoint_id, base_checkpoint_id=node.checkpoint_id
+        )
+
+    if change_count is None:
+        return [("", f"{label} "), ("fg:#888888 italic", "[files unknown]")]
+    if change_count == 0:
+        return [("", f"{label} "), ("fg:#888888 italic", "[no files]")]
+    suffix = f"[{change_count} file{'s' if change_count > 1 else ''}]"
+    return [("", f"{label} "), ("fg:#888888 italic", suffix)]
+
+
+def _next_workspace_checkpoint_ids(nodes: list[TimelineNode], store: Any) -> dict[int, int | None]:
+    """For each checkpoint, find the next workspace checkpoint that follows it.
+
+    Returns a dict mapping checkpoint_id -> next_workspace_checkpoint_id (or None).
+    This allows checkpoints without their own workspace snapshot to still show
+    file change counts from the nearest following workspace checkpoint.
+    """
+    next_ids: dict[int, int | None] = {}
+    next_workspace_id: int | None = None
+    for node in reversed(nodes):
+        next_ids[node.checkpoint_id] = next_workspace_id
+        if store.get(node.checkpoint_id) is not None:
+            next_workspace_id = node.checkpoint_id
+    return next_ids
 
 
 async def _select_checkpoint(nodes: list[TimelineNode], store: Any) -> int | None:
@@ -20,27 +75,21 @@ async def _select_checkpoint(nodes: list[TimelineNode], store: Any) -> int | Non
     if not nodes:
         return None
 
-    choices = []
-    prev_id: int | None = None
+    choices: list[tuple[str, Any]] = []
+    next_workspace_ids = _next_workspace_checkpoint_ids(nodes, store)
 
     for node in nodes:
-        label = f"#{node.checkpoint_id} {node.title}"
-        # Compare current node's snapshot with previous node's snapshot to see turn changes
-        change_count = store.get_change_count(node.checkpoint_id, base_checkpoint_id=prev_id)
-
-        if change_count is not None and change_count > 0:
-            label += f" [dim][{change_count} file{'s' if change_count > 1 else ''} changed][/dim]"
-        elif change_count == 0:
-            label += " [dim][no file changes][/dim]"
-
+        label = _format_checkpoint_label(node, store, next_workspace_ids.get(node.checkpoint_id))
         choices.append((str(node.checkpoint_id), label))
-        prev_id = node.checkpoint_id
 
-    selected = await ChoiceInput(
-        message="Select a checkpoint to continue from:",
-        options=choices,
-        default=choices[-1][0],
-    ).prompt_async()
+    selected = cast(
+        str | None,
+        await ChoiceInput(
+            message="Select a checkpoint to continue from:",
+            options=choices,
+            default=choices[-1][0],
+        ).prompt_async(),
+    )
     return int(selected) if selected else None
 
 
@@ -91,21 +140,23 @@ async def tree(app: Shell, args: str) -> None:
         console.print("[yellow]No checkpoints available in this session.[/yellow]")
         return
 
-    checkpoint_id = await _select_checkpoint(nodes, soul.runtime.workspace_checkpoints)
+    store = soul.runtime.workspace_checkpoints
+    checkpoint_id = await _select_checkpoint(nodes, store)
     if checkpoint_id is None:
         return
 
-    store = soul.runtime.workspace_checkpoints
-    has_workspace_checkpoint = store.get(checkpoint_id) is not None
+    restore_checkpoint_id = store.find_restore_checkpoint_id(checkpoint_id)
+    has_workspace_checkpoint = restore_checkpoint_id is not None
     mode = await _select_mode(has_workspace_checkpoint)
     if mode == "cancel":
         return
 
     if mode == "restore":
-        preview = store.preview_restore(checkpoint_id)
-        if not await _confirm_restore(preview.changed_files):
+        assert restore_checkpoint_id is not None
+        changed_files = store.preview_restore(restore_checkpoint_id)
+        if not await _confirm_restore(changed_files):
             return
-        store.restore(checkpoint_id)
+        store.restore(restore_checkpoint_id)
 
     note = (
         f"The user rewound the conversation to checkpoint {checkpoint_id} "
