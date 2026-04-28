@@ -69,6 +69,8 @@ async def _make_context(tmp_path: Path) -> Context:
 
 def _make_app(context: Context, checkpoints: FakeWorkspaceCheckpoints):
     app = Mock()
+    app._pending_prefill = ""
+    app.set_pending_prefill = lambda text: setattr(app, "_pending_prefill", text)
     app.soul.context = context
     app.soul.runtime.session.context_file = context.file_backend
     app.soul.runtime.workspace_checkpoints = checkpoints
@@ -92,7 +94,7 @@ def test_checkpoint_label_is_short_plain_text() -> None:
 
     assert label == [
         ("", "#20 显示下twosum.py 内容这个后面的显示简... "),
-        ("fg:#888888 italic", "[no files]"),
+        ("fg:#888888 italic", "[no file changes]"),
     ]
     assert all("[dim]" not in text for _style, text in label)
 
@@ -103,7 +105,7 @@ def test_checkpoint_label_omits_conversation_only_suffix() -> None:
 
     assert shell_tree._format_checkpoint_label(node, store, None) == [
         ("", "#1 hi "),
-        ("fg:#888888 italic", "[no files]"),
+        ("fg:#888888 italic", "[no file changes]"),
     ]
 
 
@@ -117,7 +119,7 @@ def test_checkpoint_label_counts_changes_after_turn() -> None:
 
     assert shell_tree._format_checkpoint_label(nodes[0], store, next_ids[14]) == [
         ("", "#14 这个写进在一个md file "),
-        ("fg:#888888 italic", "[1 file]"),
+        ("fg:#888888 italic", "[1 file changed]"),
     ]
 
 
@@ -183,3 +185,19 @@ async def test_restore_mode_uses_next_workspace_checkpoint_for_conversation_only
     await shell_tree.tree(app, "")
 
     assert checkpoints.restored == [2]
+
+
+@pytest.mark.asyncio
+async def test_tree_sets_pending_prefill_from_rewound_checkpoint(
+    tmp_path: Path, monkeypatch
+) -> None:
+    context = await _make_context(tmp_path)
+    app = _make_app(context, FakeWorkspaceCheckpoints())
+
+    monkeypatch.setattr(shell_tree, "ensure_kimi_soul", lambda app: app.soul)
+    monkeypatch.setattr(shell_tree, "_select_checkpoint", AsyncMock(return_value=1))
+    monkeypatch.setattr(shell_tree, "_select_mode", AsyncMock(return_value="conversation"))
+
+    await shell_tree.tree(app, "")
+
+    assert app._pending_prefill == "second"

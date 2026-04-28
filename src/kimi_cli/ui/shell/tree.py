@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from rich.console import Console
@@ -34,7 +35,7 @@ def _format_checkpoint_label(
 
     if not has_own_snapshot:
         # Only conversation checkpoint, no workspace snapshot for this turn
-        return [("", f"{label} "), ("fg:#888888 italic", "[no files]")]
+        return [("", f"{label} "), ("fg:#888888 italic", "[no file changes]")]
 
     if next_workspace_checkpoint_id is None:
         # Last workspace checkpoint — compare against current worktree
@@ -48,8 +49,8 @@ def _format_checkpoint_label(
     if change_count is None:
         return [("", f"{label} "), ("fg:#888888 italic", "[files unknown]")]
     if change_count == 0:
-        return [("", f"{label} "), ("fg:#888888 italic", "[no files]")]
-    suffix = f"[{change_count} file{'s' if change_count > 1 else ''}]"
+        return [("", f"{label} "), ("fg:#888888 italic", "[no file changes]")]
+    suffix = f"[{change_count} file{'s' if change_count > 1 else ''} changed]"
     return [("", f"{label} "), ("fg:#888888 italic", suffix)]
 
 
@@ -67,6 +68,64 @@ def _next_workspace_checkpoint_ids(nodes: list[TimelineNode], store: Any) -> dic
         if store.get(node.checkpoint_id) is not None:
             next_workspace_id = node.checkpoint_id
     return next_ids
+
+
+def _get_user_message_at_checkpoint(context: Any, checkpoint_id: int) -> str | None:
+    """Get the original user message text at the given checkpoint."""
+    # Prefer file-backed checkpoint markers, which exist even when
+    # add_user_message=False was used during checkpoint creation.
+    context_path = getattr(context, "file_backend", None)
+    if context_path is not None:
+        found_checkpoint = False
+        try:
+            with open(context_path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        loaded = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(loaded, dict):
+                        continue
+                    record = cast(dict[str, Any], loaded)
+                    if record.get("role") == "_checkpoint" and record.get("id") == checkpoint_id:
+                        found_checkpoint = True
+                        continue
+                    if not found_checkpoint or record.get("role") != "user":
+                        continue
+                    msg_text = record.get("content", "")
+                    if isinstance(msg_text, list):
+                        text_parts: list[str] = []
+                        for part in cast(list[Any], msg_text):
+                            if not isinstance(part, dict):
+                                continue
+                            part_dict = cast(dict[str, Any], part)
+                            if part_dict.get("type") == "text":
+                                maybe_text = part_dict.get("text")
+                                if isinstance(maybe_text, str):
+                                    text_parts.append(maybe_text)
+                        msg_text = " ".join(text_parts)
+                    if isinstance(msg_text, str):
+                        text = msg_text.strip()
+                        if text and not text.startswith("<system>"):
+                            return text
+        except OSError:
+            pass
+
+    # Fallback to in-memory history scan for legacy sessions.
+    found_checkpoint = False
+    for msg in context.history:
+        if msg.role != "user":
+            continue
+        text = msg.extract_text().strip()
+        if text == f"<system>CHECKPOINT {checkpoint_id}</system>":
+            found_checkpoint = True
+            continue
+        if found_checkpoint and not text.startswith("<system>"):
+            return text
+    return None
 
 
 async def _select_checkpoint(nodes: list[TimelineNode], store: Any) -> int | None:
@@ -145,6 +204,8 @@ async def tree(app: Shell, args: str) -> None:
     if checkpoint_id is None:
         return
 
+    original_message = _get_user_message_at_checkpoint(soul.context, checkpoint_id)
+
     restore_checkpoint_id = store.find_restore_checkpoint_id(checkpoint_id)
     has_workspace_checkpoint = restore_checkpoint_id is not None
     mode = await _select_mode(has_workspace_checkpoint)
@@ -164,4 +225,6 @@ async def tree(app: Shell, args: str) -> None:
         "Continue from that point."
     )
     await soul.context.rewind_to(checkpoint_id, note)
+    if original_message is not None:
+        app.set_pending_prefill(original_message)
     console.print(f"[green]Rewound to checkpoint {checkpoint_id}.[/green]")

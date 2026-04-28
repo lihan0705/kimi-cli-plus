@@ -92,6 +92,41 @@ class GenerateTitleRequest(BaseModel):
     assistant_response: str | None = None
 
 
+class FileDiffEntry(BaseModel):
+    """A single file change in a checkpoint preview."""
+
+    status: str = Field(..., description="Git status letter: A (added), M (modified), D (deleted)")
+    path: str = Field(..., description="File path relative to work directory")
+
+
+class PreviewRestoreResponse(BaseModel):
+    """Preview of file changes for a checkpoint restore."""
+
+    checkpoint_id: int = Field(..., description="Workspace checkpoint ID")
+    files: list[FileDiffEntry] = Field(default=[], description="Files that will change on restore")
+
+
+class RewindRequest(BaseModel):
+    """Request to rewind a session to a turn."""
+
+    turn_index: int = Field(..., description="0-based turn index to rewind to")
+    restore_files: bool = Field(
+        default=False, description="Whether to also restore workspace files"
+    )
+
+
+class RewindResponse(BaseModel):
+    """Response after a successful rewind."""
+
+    checkpoint_id: int = Field(..., description="Checkpoint ID rewound to")
+    mode: Literal["conversation-only", "conversation-and-files"] = Field(
+        ..., description="Rewind mode used"
+    )
+    user_message: str | None = Field(
+        default=None, description="Original user message text at the rewind point, for prefill"
+    )
+
+
 class GenerateTitleResponse(BaseModel):
     """Generate title response."""
 

@@ -239,6 +239,11 @@ type UseSessionStreamReturn = {
   deleteTurn: (turnIndex: number) => Promise<void>;
   /** Edit a turn and re-submit */
   editTurn: (turnIndex: number, newContent: string) => Promise<void>;
+  /** Rewind session to a turn, optionally restoring workspace files */
+  rewindToTurn: (
+    turnIndex: number,
+    restoreFiles: boolean,
+  ) => Promise<string | null>;
   /** Connection error if any */
   error: Error | null;
   /** Available slash commands from the server */
@@ -2762,6 +2767,58 @@ export function useSessionStream(
     [sessionId, disconnect, connect, resetState, setMessages, onError],
   );
 
+  const rewindToTurn = useCallback(
+    async (turnIndex: number, restoreFiles: boolean) => {
+      if (!sessionId) return null;
+      try {
+        const basePath = getApiBaseUrl();
+        const response = await fetch(
+          `${basePath}/api/sessions/${encodeURIComponent(sessionId)}/rewind`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...getAuthHeader(),
+            },
+            body: JSON.stringify({
+              turn_index: turnIndex,
+              restore_files: restoreFiles,
+            }),
+          },
+        );
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.detail || "Failed to rewind session");
+        }
+        const data = await response.json();
+        const userMessage =
+          data && typeof data === "object" && "user_message" in data
+            ? (data.user_message as string | null)
+            : null;
+
+        // Successfully rewound in backend, now refresh UI by reconnecting
+        disconnect();
+        resetState();
+        // Surgically remove rewound turns from local state
+        // Remove the selected turn and everything after (matching CLI behavior)
+        setMessages((prev) =>
+          prev.filter(
+            (m) => m.turnIndex === undefined || m.turnIndex < turnIndex,
+          ),
+        );
+        connect();
+        return userMessage;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to rewind session";
+        onError?.(err instanceof Error ? err : new Error(message));
+        return null;
+      }
+    },
+    [sessionId, disconnect, connect, resetState, setMessages, onError],
+  );
+
   return {
     messages,
     status,
@@ -2783,6 +2840,7 @@ export function useSessionStream(
     clearMessages,
     deleteTurn,
     editTurn,
+    rewindToTurn,
     error,
     slashCommands,
   };

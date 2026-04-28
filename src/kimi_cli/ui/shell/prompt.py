@@ -863,9 +863,9 @@ class CustomPromptSession:
         event.app.invalidate()
         return True
 
-    async def prompt(self) -> UserInput:
+    async def prompt(self, default: str = "") -> UserInput:
         with patch_stdout(raw=True):
-            command = str(await self._session.prompt_async()).strip()
+            command = str(await self._session.prompt_async(default=default)).strip()
             command = command.replace("\x00", "")  # just in case null bytes are somehow inserted
             # Sanitize UTF-16 surrogates that may come from Windows clipboard
             command = _sanitize_surrogates(command)

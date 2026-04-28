@@ -8,6 +8,7 @@ import mimetypes
 import os
 import re
 import shutil
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,10 +28,14 @@ from kimi_cli.session import Session as KimiCLISession
 from kimi_cli.utils.subprocess_env import get_clean_env
 from kimi_cli.web.auth import is_origin_allowed, is_private_ip, verify_token
 from kimi_cli.web.models import (
+    FileDiffEntry,
     GenerateTitleRequest,
     GenerateTitleResponse,
     GitDiffStats,
     GitFileDiff,
+    PreviewRestoreResponse,
+    RewindRequest,
+    RewindResponse,
     Session,
     SessionStatus,
     UpdateSessionRequest,
@@ -748,6 +753,42 @@ def truncate_wire_at_turn(wire_path: Path, turn_index: int) -> list[str]:
     return lines
 
 
+def _extract_user_message_at_turn(wire_path: Path, turn_index: int) -> str | None:
+    """Extract the user message text at the given turn from wire.jsonl."""
+    if not wire_path.exists():
+        return None
+
+    current_turn = -1
+    try:
+        with open(wire_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if record.get("type") == "metadata":
+                    continue
+                message = record.get("message", {})
+                msg_type = message.get("type")
+                if msg_type == "TurnBegin":
+                    current_turn += 1
+                    if current_turn == turn_index:
+                        user_input = message.get("payload", {}).get("user_input")
+                        if user_input:
+                            from kosong.message import Message
+
+                            msg = Message(role="user", content=user_input)
+                            return msg.extract_text(" ")
+                    if current_turn > turn_index:
+                        break
+    except OSError:
+        return None
+    return None
+
+
 def _is_checkpoint_user_message(record: dict[str, Any]) -> bool:
     """Whether a context line is the synthetic user checkpoint marker."""
     if record.get("role") != "user":
@@ -1137,7 +1178,239 @@ async def delete_turn(
     await session.kimi_cli_session.refresh()
 
 
-@router.delete("/{session_id}/bookmark/{turn_index}", summary="Remove a turn bookmark")
+@router.get(
+    "/{session_id}/turns/{turn_index}/checkpoint-preview",
+    summary="Preview file changes for a checkpoint restore",
+)
+async def preview_checkpoint_restore(
+    session_id: UUID,
+    turn_index: int,
+    runner: KimiCLIRunner = Depends(get_runner),
+) -> PreviewRestoreResponse:
+    """Preview which files would change if the workspace is restored to the checkpoint at a turn."""
+    session = load_session_by_id(session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+    session_dir = session.kimi_cli_session.dir
+    work_dir = str(session.kimi_cli_session.work_dir)
+    context_path = session_dir / "context.jsonl"
+    index_file = session_dir / "workspace-checkpoints" / "index.json"
+    shadow_git_dir = session_dir / "workspace-checkpoints" / "shadow_git"
+
+    # Find the checkpoint_id for this turn_index
+    checkpoint_id = _find_checkpoint_id_for_turn(context_path, turn_index)
+    if checkpoint_id is None:
+        return PreviewRestoreResponse(checkpoint_id=-1, files=[])
+
+    if not index_file.exists():
+        return PreviewRestoreResponse(checkpoint_id=checkpoint_id, files=[])
+
+    try:
+        index_data = json.loads(index_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return PreviewRestoreResponse(checkpoint_id=checkpoint_id, files=[])
+
+    # Align with CLI /tree label semantics:
+    # - no own snapshot: no file changes
+    # - has next snapshot: diff current snapshot -> next snapshot
+    # - last snapshot: diff current snapshot -> current worktree
+    commit_hash: str | None = index_data.get(str(checkpoint_id))
+    workspace_checkpoint_id = checkpoint_id
+    if commit_hash is None or not shadow_git_dir.exists():
+        return PreviewRestoreResponse(checkpoint_id=workspace_checkpoint_id, files=[])
+
+    next_commit_hash: str | None = None
+    for cid_str in sorted(index_data.keys(), key=lambda k: int(k)):
+        cid = int(cid_str)
+        if cid > checkpoint_id:
+            candidate = index_data.get(cid_str)
+            if isinstance(candidate, str):
+                next_commit_hash = candidate
+                break
+
+    # Run git diff --name-status in the shadow repo
+    env = os.environ.copy()
+    env["GIT_DIR"] = str(shadow_git_dir)
+    env["GIT_WORK_TREE"] = work_dir
+    env["GIT_INDEX_FILE"] = str(shadow_git_dir / "index")
+
+    if next_commit_hash is not None:
+        # Historical checkpoint: compare to the next checkpoint snapshot.
+        result = subprocess.run(
+            ["git", "diff", "--name-status", commit_hash, next_commit_hash],
+            env=env,
+            cwd=work_dir,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    else:
+        # Last checkpoint: compare to current worktree.
+        subprocess.run(["git", "add", "-A"], env=env, cwd=work_dir, capture_output=True, timeout=30)
+        result = subprocess.run(
+            ["git", "diff", "--name-status", commit_hash],
+            env=env,
+            cwd=work_dir,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        # Unstage to avoid side effects
+        subprocess.run(
+            ["git", "reset", "HEAD"],
+            env=env,
+            cwd=work_dir,
+            capture_output=True,
+            timeout=30,
+        )
+
+    files: list[FileDiffEntry] = []
+    if result.returncode == 0 and result.stdout.strip():
+        for line in result.stdout.splitlines():
+            parts = line.split("\t", 1)
+            if len(parts) == 2:
+                files.append(FileDiffEntry(status=parts[0].strip(), path=parts[1].strip()))
+
+    return PreviewRestoreResponse(checkpoint_id=workspace_checkpoint_id, files=files)
+
+
+@router.post("/{session_id}/rewind", summary="Rewind session to a turn")
+async def rewind_session(
+    session_id: UUID,
+    request: RewindRequest,
+    runner: KimiCLIRunner = Depends(get_runner),
+) -> RewindResponse:
+    """Rewind a session to a specific turn, optionally restoring workspace files."""
+    session = get_editable_session(session_id, runner)
+    session_dir = session.kimi_cli_session.dir
+    work_dir = str(session.kimi_cli_session.work_dir)
+    wire_path = session_dir / "wire.jsonl"
+    context_path = session_dir / "context.jsonl"
+
+    target_turn_index = request.turn_index
+    mode = "conversation-and-files" if request.restore_files else "conversation-only"
+    user_message = _extract_user_message_at_turn(wire_path, target_turn_index)
+
+    # Find checkpoint_id for this turn (needed for workspace restore)
+    checkpoint_id = _find_checkpoint_id_for_turn(context_path, target_turn_index)
+
+    # Restore workspace files if requested
+    if request.restore_files:
+        if checkpoint_id is None:
+            # Some turns may not have a matching checkpoint (e.g. special/system-only turns).
+            # Degrade gracefully: still rewind conversation, but skip file restore.
+            mode = "conversation-only"
+        else:
+            try:
+                _restore_workspace_checkpoint(
+                    session_dir=session_dir,
+                    work_dir=work_dir,
+                    checkpoint_id=checkpoint_id,
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to restore workspace files: {e}",
+                ) from e
+
+    # Truncate BEFORE the target turn: remove the selected turn and everything after.
+    # This matches the CLI behavior where revert_to(checkpoint_id) removes the
+    # checkpoint (user message + assistant response) and all subsequent content.
+    keep_up_to = target_turn_index - 1
+    try:
+        if keep_up_to >= 0:
+            truncated_wire_lines = truncate_wire_at_turn(wire_path, keep_up_to)
+            truncated_context_lines = truncate_context_at_turn(context_path, keep_up_to)
+        else:
+            # Rewind to before the first turn — keep only the wire metadata header
+            truncated_wire_lines: list[str] = []
+            if wire_path.exists():
+                with open(wire_path, encoding="utf-8") as f:
+                    for line in f:
+                        if parse_wire_file_metadata(line):
+                            truncated_wire_lines.append(line.strip())
+                            break
+            if not truncated_wire_lines:
+                truncated_wire_lines = [json.dumps({"type": "metadata", "protocol_version": "1.0"})]
+            truncated_context_lines = []
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+    # Rewrite files
+    wire_path.write_text("\n".join(truncated_wire_lines) + "\n", encoding="utf-8")
+    context_path.write_text("\n".join(truncated_context_lines) + "\n", encoding="utf-8")
+
+    # Refresh session metadata
+    await session.kimi_cli_session.refresh()
+
+    return RewindResponse(checkpoint_id=checkpoint_id or -1, mode=mode, user_message=user_message)
+
+
+def _find_checkpoint_id_for_turn(context_path: Path, turn_index: int) -> int | None:
+    """Find the checkpoint_id for a given turn index (0-based user message count).
+
+    Reads context.jsonl and counts real user messages until the target turn,
+    then returns the checkpoint_id associated with that turn.
+    """
+    if not context_path.exists():
+        return None
+
+    pending_checkpoints: list[int] = []
+    current_turn = -1  # will become 0 on first real user message
+
+    with open(context_path, encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                record = json.loads(stripped)
+            except json.JSONDecodeError:
+                continue
+
+            if record.get("role") == "_checkpoint":
+                pending_checkpoints.append(int(record["id"]))
+                continue
+            if record.get("role", "").startswith("_"):
+                continue
+
+            # Real message
+            if record.get("role") == "user" and not _is_checkpoint_user_message(record):
+                current_turn += 1
+                if current_turn == turn_index and pending_checkpoints:
+                    return max(pending_checkpoints)
+                pending_checkpoints.clear()
+
+    return None
+
+
+def _restore_workspace_checkpoint(session_dir: Path, work_dir: str, checkpoint_id: int) -> None:
+    """Restore workspace files to a checkpoint state.
+
+    Constructs a WorkspaceCheckpointStore from disk and calls restore().
+    """
+    from kimi_cli.soul.workspace_checkpoint import WorkspaceCheckpointStore
+
+    store = WorkspaceCheckpointStore(
+        session_dir=session_dir,
+        work_dir=Path(work_dir),
+    )
+
+    # Find the workspace checkpoint (may differ from conversation checkpoint)
+    workspace_checkpoint_id = store.find_restore_checkpoint_id(checkpoint_id)
+    if workspace_checkpoint_id is None:
+        logger.warning("No workspace checkpoint found for checkpoint {}", checkpoint_id)
+        return
+
+    store.restore(workspace_checkpoint_id)
+
+
 async def remove_bookmark(
     session_id: UUID,
     turn_index: int,
