@@ -467,8 +467,10 @@ class WorkspaceCheckpointStore:
             except OSError as e:
                 logger.debug("Failed to delete file during restore: {} ({})", fpath, e)
 
-        # 6. Reset shadow repo index to target commit for consistency
-        self._run_git(["reset", commit_hash, "--quiet"], allowed_returncodes={1})
+        # 6. Reset shadow repo index to target commit for consistency, without
+        # moving HEAD.  Using pathspec form keeps commit history intact
+        # (including the pre-rollback safety commit).
+        self._run_git(["reset", "--quiet", commit_hash, "--", "."], allowed_returncodes={1})
 
         logger.info(
             "Restored workspace to checkpoint {} ({}) — {} file(s) removed",
