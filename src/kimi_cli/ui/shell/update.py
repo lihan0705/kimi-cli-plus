@@ -4,6 +4,7 @@ import asyncio
 import os
 import re
 from enum import Enum, auto
+from typing import Any, cast
 
 import aiohttp
 
@@ -12,10 +13,8 @@ from kimi_cli.ui.shell.console import console
 from kimi_cli.utils.aiohttp import new_client_session
 from kimi_cli.utils.logging import logger
 
-DEFAULT_LATEST_VERSION_URL = (
-    "https://raw.githubusercontent.com/lihan0705/kimi-cli-plus/main/pyproject.toml"
-)
-LATEST_VERSION_URL = os.getenv("KIMI_CLI_LATEST_VERSION_URL", DEFAULT_LATEST_VERSION_URL)
+DEFAULT_TAGS_API_URL = "https://api.github.com/repos/lihan0705/kimi-cli-plus/tags"
+TAGS_API_URL = os.getenv("KIMI_CLI_TAGS_API_URL", DEFAULT_TAGS_API_URL)
 UPGRADE_COMMAND = (
     "curl -LsSf https://raw.githubusercontent.com/lihan0705/"
     "kimi-cli-plus/main/scripts/install.sh | bash"
@@ -46,24 +45,34 @@ def semver_tuple(version: str) -> tuple[int, int, int]:
     return (major, minor, patch)
 
 
-def _parse_version_from_text(text: str) -> str | None:
-    # Supports either plain version text (`0.1.0`) or pyproject content with `version = "0.1.0"`.
-    direct = text.strip()
-    if re.fullmatch(r"v?\d+\.\d+(?:\.\d+)?", direct):
-        return direct
-
-    match = re.search(r'^\s*version\s*=\s*"([^"]+)"\s*$', text, flags=re.MULTILINE)
-    if match:
-        return match.group(1).strip()
+def _normalize_tag_version(tag_name: str) -> str | None:
+    name = tag_name.strip()
+    if re.fullmatch(r"v?\d+\.\d+\.\d+", name):
+        return name
     return None
 
 
 async def _get_latest_version(session: aiohttp.ClientSession) -> str | None:
     try:
-        async with session.get(LATEST_VERSION_URL) as resp:
+        async with session.get(TAGS_API_URL) as resp:
             resp.raise_for_status()
-            data = await resp.text()
-            return _parse_version_from_text(data)
+            data = await resp.json()
+            if not isinstance(data, list):
+                return None
+            versions: list[str] = []
+            for item in cast(list[Any], data):
+                if not isinstance(item, dict):
+                    continue
+                item_dict = cast(dict[str, object], item)
+                tag_name = item_dict.get("name")
+                if isinstance(tag_name, str):
+                    normalized = _normalize_tag_version(tag_name)
+                    if normalized is not None:
+                        versions.append(normalized)
+            if not versions:
+                return None
+            versions.sort(key=semver_tuple, reverse=True)
+            return versions[0]
     except aiohttp.ClientError:
         logger.exception("Failed to get latest version:")
         return None
@@ -89,8 +98,8 @@ async def _do_update(*, print: bool, check_only: bool) -> UpdateResult:
         _print("Checking for updates...")
         latest_version = await _get_latest_version(session)
         if not latest_version:
-            _print("[red]Failed to check for updates.[/red]")
-            return UpdateResult.FAILED
+            logger.debug("No valid release tags found; skip update reminder.")
+            return UpdateResult.UP_TO_DATE
 
         logger.debug("Latest version: {latest_version}", latest_version=latest_version)
         LATEST_VERSION_FILE.write_text(latest_version, encoding="utf-8")

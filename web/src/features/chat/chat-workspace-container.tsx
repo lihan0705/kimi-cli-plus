@@ -120,6 +120,7 @@ export function ChatWorkspaceContainer({
     cancel: cancelStream,
     deleteTurn,
     editTurn,
+    rewindToTurn,
     contextUsage,
     tokenUsage,
     currentStep,
@@ -390,6 +391,7 @@ export function ChatWorkspaceContainer({
       onForkSession={onForkSession ? handleForkSession : undefined}
       onDeleteTurn={deleteTurn}
       onEditTurn={editTurn}
+      onRewindToTurn={rewindToTurn}
     />
   );
 }
