@@ -18,19 +18,11 @@ from rich.text import Text
 from kimi_cli.soul import LLMNotSet, LLMNotSupported, MaxStepsReached, RunCancelled, Soul, run_soul
 from kimi_cli.soul.kimisoul import KimiSoul
 from kimi_cli.ui.shell.console import console
-from kimi_cli.ui.shell.prompt import CustomPromptSession, PromptMode, toast
+from kimi_cli.ui.shell.prompt import CustomPromptSession, PromptMode
 from kimi_cli.ui.shell.replay import replay_recent_history
 from kimi_cli.ui.shell.slash import registry as shell_slash_registry
 from kimi_cli.ui.shell.slash import shell_mode_registry
-from kimi_cli.ui.shell.update import (
-    UPGRADE_COMMAND,
-    UpdateResult,
-    do_update,
-    read_cached_latest_version,
-    semver_tuple,
-)
 from kimi_cli.ui.shell.visualize import visualize
-from kimi_cli.utils.envvar import get_env_bool
 from kimi_cli.utils.logging import open_original_stderr
 from kimi_cli.utils.signals import install_sigint_handler
 from kimi_cli.utils.slashcmd import (
@@ -76,12 +68,6 @@ class Shell:
             return await self.run_soul_command(command)
 
         welcome_info = list(self._welcome_info)
-        if get_env_bool("KIMI_CLI_NO_AUTO_UPDATE"):
-            logger.info("Auto-update disabled by KIMI_CLI_NO_AUTO_UPDATE environment variable")
-        else:
-            if update_info := self._get_cached_update_welcome_info():
-                welcome_info.append(update_info)
-            self._start_background_task(self._auto_update())
 
         _print_welcome_info(self.soul.name or "Kimi Code CLI", welcome_info)
 
@@ -355,36 +341,6 @@ class Shell:
         finally:
             remove_sigint()
         return False
-
-    async def _auto_update(self) -> None:
-        toast("checking for updates...", topic="update", duration=2.0)
-        result = await do_update(print=False, check_only=True)
-        if result == UpdateResult.UPDATE_AVAILABLE:
-            latest_version = read_cached_latest_version() or ""
-            version_hint = f" ({latest_version})" if latest_version else ""
-            while True:
-                toast(
-                    f"new version found{version_hint}, run `{UPGRADE_COMMAND}` to upgrade",
-                    topic="update",
-                    duration=30.0,
-                )
-                await asyncio.sleep(60.0)
-        elif result == UpdateResult.UPDATED:
-            toast("auto updated, restart to use the new version", topic="update", duration=5.0)
-
-    def _get_cached_update_welcome_info(self) -> WelcomeInfoItem | None:
-        latest_version = read_cached_latest_version()
-        if latest_version is None:
-            return None
-        from kimi_cli.constant import VERSION as current_version
-
-        if semver_tuple(latest_version) > semver_tuple(current_version):
-            return WelcomeInfoItem(
-                name="Update",
-                value=f"New version ({latest_version}). Run `{UPGRADE_COMMAND}` to install.",
-                level=WelcomeInfoItem.Level.WARN,
-            )
-        return WelcomeInfoItem(name="Update", value="No update.")
 
     def _start_background_task(self, coro: Coroutine[Any, Any, Any]) -> asyncio.Task[Any]:
         task = asyncio.create_task(coro)
