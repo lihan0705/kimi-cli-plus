@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 
 from kimi_cli.config import LLMModel, get_config_file, load_config, save_config
 from kimi_cli.llm import ProviderType, derive_model_capabilities
-from kimi_cli.ui.shell.update import LATEST_VERSION_FILE, UPGRADE_COMMAND, UpdateResult, do_update
 from kimi_cli.web.runner.process import KimiCLIRunner
 
 router = APIRouter(prefix="/api/config", tags=["config"])
@@ -88,14 +87,6 @@ class UpdateConfigTomlResponse(BaseModel):
 
     success: bool = Field(description="Whether the update was successful")
     error: str | None = Field(default=None, description="Error message if failed")
-
-
-class UpdateStatusResponse(BaseModel):
-    """Update status for Web UI."""
-
-    update_available: bool = Field(description="Whether a newer version is available")
-    latest_version: str | None = Field(default=None, description="Latest discovered version")
-    upgrade_command: str = Field(description="Recommended upgrade command")
 
 
 def _build_global_config() -> GlobalConfig:
@@ -274,20 +265,6 @@ async def get_config_toml(http_request: Request) -> ConfigToml:
     if not config_file.exists():
         return ConfigToml(content="", path=str(config_file))
     return ConfigToml(content=config_file.read_text(encoding="utf-8"), path=str(config_file))
-
-
-@router.get("/update-status", summary="Get update status for Web UI")
-async def get_update_status() -> UpdateStatusResponse:
-    """Check whether a newer CLI version is available and return upgrade guidance."""
-    result = await do_update(print=False, check_only=True)
-    latest_version: str | None = None
-    if LATEST_VERSION_FILE.exists():
-        latest_version = LATEST_VERSION_FILE.read_text(encoding="utf-8").strip() or None
-    return UpdateStatusResponse(
-        update_available=result == UpdateResult.UPDATE_AVAILABLE,
-        latest_version=latest_version,
-        upgrade_command=UPGRADE_COMMAND,
-    )
 
 
 @router.put("/toml", summary="Update kimi-cli config.toml")

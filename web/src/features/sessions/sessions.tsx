@@ -52,8 +52,7 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { isMacOS, getApiBaseUrl } from "@/hooks/utils";
-import { getAuthHeader } from "@/lib/auth";
+import { isMacOS } from "@/hooks/utils";
 import { cn, } from "@/lib/utils";
 
 // Top-level regex constants for performance
@@ -222,34 +221,10 @@ export const SessionsSidebar = memo(function SessionsSidebarComponent({
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [isMultiSelectArchived, setIsMultiSelectArchived] = useState(false); // true when selecting archived sessions
   const [isBulkOperating, setIsBulkOperating] = useState(false);
-  const [updateCommand, setUpdateCommand] = useState<string | null>(null);
-  const [latestVersion, setLatestVersion] = useState<string | null>(null);
 
   useEffect(() => {
     setSessionSearch(searchQuery);
   }, [searchQuery]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const fetchUpdateStatus = async () => {
-      try {
-        const response = await fetch(`${getApiBaseUrl()}/api/config/update-status`, {
-          headers: getAuthHeader(),
-          signal: controller.signal,
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (data?.update_available && typeof data?.upgrade_command === "string") {
-          setUpdateCommand(data.upgrade_command);
-          setLatestVersion(typeof data?.latest_version === "string" ? data.latest_version : null);
-        }
-      } catch {
-        // ignore update-check errors in sidebar
-      }
-    };
-    fetchUpdateStatus();
-    return () => controller.abort();
-  }, []);
 
   // Load archived sessions when the section is expanded
   useEffect(() => {
@@ -650,14 +625,6 @@ export const SessionsSidebar = memo(function SessionsSidebarComponent({
               </button>
             )}
           </div>
-          {updateCommand && (
-            <div className="mx-3 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-[11px] text-yellow-200">
-              {latestVersion ? `New version: ${latestVersion}. ` : "New version available. "}
-              Run:
-              <code className="ml-1 break-all text-yellow-100">{updateCommand}</code>
-            </div>
-          )}
-
           {/* Sessions */}
           <div className="flex items-center justify-between px-3 pt-3">
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sessions</h4>

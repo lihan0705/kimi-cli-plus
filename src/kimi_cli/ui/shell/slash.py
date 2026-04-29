@@ -50,7 +50,6 @@ from . import (  # noqa: F401, E402
     export_import,  # pyright: ignore[reportUnusedImport]
     oauth,  # pyright: ignore[reportUnusedImport]
     setup,  # pyright: ignore[reportUnusedImport]
-    update,  # pyright: ignore[reportUnusedImport]
     usage,  # pyright: ignore[reportUnusedImport]
 )
 
