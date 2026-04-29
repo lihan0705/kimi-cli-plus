@@ -15,6 +15,7 @@ from kimi_cli.utils.logging import logger
 
 DEFAULT_TAGS_API_URL = "https://api.github.com/repos/lihan0705/kimi-cli-plus/tags"
 TAGS_API_URL = os.getenv("KIMI_CLI_TAGS_API_URL", DEFAULT_TAGS_API_URL)
+UPDATE_CHECK_TIMEOUT_SECONDS = float(os.getenv("KIMI_CLI_UPDATE_TIMEOUT", "2"))
 UPGRADE_COMMAND = (
     "curl -LsSf https://raw.githubusercontent.com/lihan0705/"
     "kimi-cli-plus/main/scripts/install.sh | bash"
@@ -54,7 +55,8 @@ def _normalize_tag_version(tag_name: str) -> str | None:
 
 async def _get_latest_version(session: aiohttp.ClientSession) -> str | None:
     try:
-        async with session.get(TAGS_API_URL) as resp:
+        timeout = aiohttp.ClientTimeout(total=UPDATE_CHECK_TIMEOUT_SECONDS)
+        async with session.get(TAGS_API_URL, timeout=timeout) as resp:
             resp.raise_for_status()
             data = await resp.json()
             if not isinstance(data, list):
@@ -73,7 +75,7 @@ async def _get_latest_version(session: aiohttp.ClientSession) -> str | None:
                 return None
             versions.sort(key=semver_tuple, reverse=True)
             return versions[0]
-    except aiohttp.ClientError:
+    except (TimeoutError, aiohttp.ClientError):
         logger.exception("Failed to get latest version:")
         return None
 
@@ -84,6 +86,12 @@ async def do_update(*, print: bool = True, check_only: bool = False) -> UpdateRe
 
 
 LATEST_VERSION_FILE = get_share_dir() / "latest_version.txt"
+
+
+def read_cached_latest_version() -> str | None:
+    if not LATEST_VERSION_FILE.exists():
+        return None
+    return LATEST_VERSION_FILE.read_text(encoding="utf-8").strip() or None
 
 
 async def _do_update(*, print: bool, check_only: bool) -> UpdateResult:
